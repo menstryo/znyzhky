@@ -101,10 +101,10 @@
         NSURL *url = [[[_queue lastObject] retain] autorelease];
         [_queue removeLastObject];
         _active++;
-        NSURLRequest *req = [NSURLRequest requestWithURL:url cachePolicy:NSURLRequestReturnCacheDataElseLoad timeoutInterval:20];
+        NSURLRequest *req = ZNMakeRequest(url, NSURLRequestReturnCacheDataElseLoad, 20);
         [ZNRequest start:req done:^(NSURLResponse *resp, NSData *data, NSError *err) {
             _active--;
-            NSInteger code = [resp isKindOfClass:[NSHTTPURLResponse class]] ? [(NSHTTPURLResponse *)resp statusCode] : 0;
+            NSInteger code = ZNStatusCode(resp);
             UIImage *img = (code == 200 && data.length) ? [UIImage imageWithData:data scale:1] : nil;
             if (img) {
                 [_mem setObject:img forKey:url];

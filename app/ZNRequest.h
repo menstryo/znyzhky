@@ -11,3 +11,8 @@
 + (ZNRequest *)start:(NSURLRequest *)req done:(void (^)(NSURLResponse *resp, NSData *data, NSError *err))done;
 - (void)cancel;
 @end
+
+// SDK 9.3 прив'язує NSURL*-класи до CFNetwork, а на iOS 6 вони живуть у Foundation —
+// пряме посилання валить застосунок при запуску (dyld: Symbol not found). Тому лише через рантайм.
+NSMutableURLRequest *ZNMakeRequest(NSURL *url, NSURLRequestCachePolicy policy, NSTimeInterval timeout);
+NSInteger ZNStatusCode(NSURLResponse *resp);

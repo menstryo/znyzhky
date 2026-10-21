@@ -167,10 +167,7 @@ static NSDate *ZNParseISODate(NSString *s) {
 
 - (NSMutableURLRequest *)requestForPath:(NSString *)path {
     NSString *u = [NSString stringWithFormat:@"%@/%@?t=%.0f", self.serverURL, path, [[NSDate date] timeIntervalSince1970]];
-    NSMutableURLRequest *r = [NSMutableURLRequest requestWithURL:[NSURL URLWithString:u]
-                                                     cachePolicy:NSURLRequestReloadIgnoringLocalCacheData
-                                                 timeoutInterval:30];
-    return r;
+    return ZNMakeRequest([NSURL URLWithString:u], NSURLRequestReloadIgnoringLocalCacheData, 30);
 }
 
 - (void)fail:(NSError *)err {
@@ -187,7 +184,7 @@ static NSDate *ZNParseISODate(NSString *s) {
     _failed = NO;
     [self setLoadingState:YES];
     [ZNRequest start:[self requestForPath:@"index.json"] done:^(NSURLResponse *resp, NSData *data, NSError *err) {
-        NSInteger code = [resp isKindOfClass:[NSHTTPURLResponse class]] ? [(NSHTTPURLResponse *)resp statusCode] : 0;
+        NSInteger code = ZNStatusCode(resp);
         NSDictionary *index = (code == 200) ? ZNParse(data) : nil;
         if (!index) {
             [self fail:err];
@@ -213,7 +210,7 @@ static NSDate *ZNParseISODate(NSString *s) {
             _pending++;
             NSString *p = [NSString stringWithFormat:@"store/%@.json", sid];
             [ZNRequest start:[self requestForPath:p] done:^(NSURLResponse *r2, NSData *d2, NSError *e2) {
-                NSInteger c2 = [r2 isKindOfClass:[NSHTTPURLResponse class]] ? [(NSHTTPURLResponse *)r2 statusCode] : 0;
+                NSInteger c2 = ZNStatusCode(r2);
                 if (c2 == 200 && ZNParse(d2)) [d2 writeToFile:[self pathForStore:sid] atomically:YES];
                 else [self fail:e2];
                 if (--_pending == 0) [self finishRefresh];

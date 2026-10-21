@@ -15,6 +15,11 @@ import * as avrora from "./sources/avrora.mjs";
 
 const SOURCES = [silpo, atb, varus, avrora];
 
+// лог збирача публікуємо разом з даними (public/build-log.txt) — щоб бачити помилки без доступу до логів Actions
+const LOG = [];
+const origLog = console.log;
+console.log = (...args) => { LOG.push(args.join(" ")); origLog(...args); };
+
 const OUT = path.resolve("public");
 const IMG_CACHE = path.resolve(".cache/img");
 const PAGES_URL = (process.env.PAGES_URL || "").replace(/\/$/, "");
@@ -62,6 +67,7 @@ const hashOf = s => crypto.createHash("sha1").update(s).digest("hex").slice(0, 1
 // перестаємо пробувати до наступного запуску, щоб збірка не висіла годинами.
 const IMG_FAIL_LIMIT = 25;
 const imgFails = {};
+const imgErrLogged = {};
 const NO_IMAGES = !!process.env.NO_IMAGES;
 
 async function thumb(storeId, src) {
@@ -80,8 +86,9 @@ async function thumb(storeId, src) {
       fs.mkdirSync(path.dirname(cached), { recursive: true });
       fs.writeFileSync(cached, jpg);
       imgFails[storeId] = 0;
-    } catch {
+    } catch (e) {
       imgFails[storeId] = (imgFails[storeId] || 0) + 1;
+      if (!imgErrLogged[storeId]) { imgErrLogged[storeId] = true; console.log(`[${storeId}] картинка: ${e.message}`); }
       if (imgFails[storeId] === IMG_FAIL_LIMIT) console.log(`[${storeId}] картинки не вантажаться — пропускаю до наступного запуску`);
       return null;
     }
@@ -167,6 +174,7 @@ fs.writeFileSync(path.join(OUT, "index.json"), JSON.stringify({
   cats: CATEGORIES.map(c => ({ id: c.id, name: c.name, count: catCount[c.id] })),
 }));
 fs.writeFileSync(path.join(OUT, ".nojekyll"), "");
+fs.writeFileSync(path.join(OUT, "build-log.txt"), LOG.join("\n") + "\n");
 if (fs.existsSync("site/index.html")) fs.copyFileSync("site/index.html", path.join(OUT, "index.html"));
 if (fs.existsSync("Znyzhky.ipa")) fs.copyFileSync("Znyzhky.ipa", path.join(OUT, "Znyzhky.ipa"));
 

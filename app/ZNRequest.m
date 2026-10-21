@@ -6,7 +6,7 @@
     ZNRequest *r = [[ZNRequest alloc] init]; // звільняється після завершення
     r->_done = [done copy];
     r->_data = [[NSMutableData alloc] init];
-    r->_conn = [[NSURLConnection alloc] initWithRequest:req delegate:r startImmediately:NO];
+    r->_conn = [[NSClassFromString(@"NSURLConnection") alloc] initWithRequest:req delegate:r startImmediately:NO];
     [r->_conn scheduleInRunLoop:[NSRunLoop mainRunLoop] forMode:NSRunLoopCommonModes];
     [r->_conn start];
     return r;
@@ -40,8 +40,8 @@
 }
 
 - (void)connection:(NSURLConnection *)c willSendRequestForAuthenticationChallenge:(NSURLAuthenticationChallenge *)ch {
-    if ([ch.protectionSpace.authenticationMethod isEqualToString:NSURLAuthenticationMethodServerTrust]) {
-        [ch.sender useCredential:[NSURLCredential credentialForTrust:ch.protectionSpace.serverTrust] forAuthenticationChallenge:ch];
+    if ([ch.protectionSpace.authenticationMethod isEqualToString:@"NSURLAuthenticationMethodServerTrust"]) {
+        [ch.sender useCredential:[NSClassFromString(@"NSURLCredential") credentialForTrust:ch.protectionSpace.serverTrust] forAuthenticationChallenge:ch];
     } else {
         [ch.sender performDefaultHandlingForAuthenticationChallenge:ch];
     }
@@ -57,3 +57,11 @@
 - (NSCachedURLResponse *)connection:(NSURLConnection *)c willCacheResponse:(NSCachedURLResponse *)r { return nil; }
 
 @end
+
+NSMutableURLRequest *ZNMakeRequest(NSURL *url, NSURLRequestCachePolicy policy, NSTimeInterval timeout) {
+    return [NSClassFromString(@"NSMutableURLRequest") requestWithURL:url cachePolicy:policy timeoutInterval:timeout];
+}
+
+NSInteger ZNStatusCode(NSURLResponse *resp) {
+    return [resp respondsToSelector:@selector(statusCode)] ? [(id)resp statusCode] : 0;
+}
