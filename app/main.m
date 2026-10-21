@@ -7,7 +7,9 @@
 #import "ZNSettingsViewController.h"
 #import "ZNLeafletsViewController.h"
 
-@interface ZNAppDelegate : UIResponder <UIApplicationDelegate>
+@interface ZNAppDelegate : UIResponder <UIApplicationDelegate> {
+    UINavigationController *_navDeals, *_navPapers, *_navList, *_navMore;
+}
 @property (nonatomic, retain) UIWindow *window;
 @property (nonatomic, retain) UITabBarController *tabs;
 @end
@@ -33,10 +35,11 @@ static UINavigationController *ZNNav(UIViewController *root, NSString *title, NS
     ZNSettingsViewController *more = [[[ZNSettingsViewController alloc] init] autorelease];
 
     self.tabs = [[[UITabBarController alloc] init] autorelease];
-    self.tabs.viewControllers = @[ ZNNav(deals, @"Акції", @"tab-all"),
-                                   ZNNav(papers, @"Газетки", @"tab-news"),
-                                   ZNNav(list, @"Список", @"tab-list"),
-                                   ZNNav(more, @"Ще", @"tab-more") ];
+    _navDeals  = [ZNNav(deals, @"Акції", @"tab-all") retain];
+    _navPapers = [ZNNav(papers, @"Газетки", @"tab-news") retain];
+    _navList   = [ZNNav(list, @"Список", @"tab-list") retain];
+    _navMore   = [ZNNav(more, @"Ще", @"tab-more") retain];
+    [self updateTabs];
 
     self.window.rootViewController = self.tabs;
     self.window.backgroundColor = [UIColor whiteColor];
@@ -65,12 +68,32 @@ static UINavigationController *ZNNav(UIViewController *root, NSString *title, NS
     [self.tabs presentViewController:n animated:YES completion:nil];
 }
 
+// «Газетки» видно лише тоді, коли в місті вони є
+- (BOOL)cityHasLeaflets {
+    ZNStore *st = [ZNStore shared];
+    if (!st.cityId) return NO;
+    if (st.leaflets.count) return YES;
+    for (NSDictionary *c in st.cities)
+        if ([[c objectForKey:@"id"] isEqual:st.cityId]) return [[c objectForKey:@"leaflets"] integerValue] > 0;
+    return NO;
+}
+
+- (void)updateTabs {
+    BOOL show = [self cityHasLeaflets];
+    NSArray *want = show ? @[ _navDeals, _navPapers, _navList, _navMore ] : @[ _navDeals, _navList, _navMore ];
+    if ([self.tabs.viewControllers isEqualToArray:want]) return;
+    UIViewController *sel = self.tabs.selectedViewController;
+    [self.tabs setViewControllers:want animated:NO];
+    if (sel && [want containsObject:sel]) self.tabs.selectedViewController = sel;
+}
+
 // бейджі: «Список» — скільки ще купити, «Ще» — скільки товарів зі слів зараз в акції
 - (void)updateBadge {
+    [self updateTabs];
     ZNStore *st = [ZNStore shared];
     NSUInteger open = st.listOpenCount, words = st.watchMatchCount;
-    [[self.tabs.viewControllers objectAtIndex:2] tabBarItem].badgeValue = open ? [NSString stringWithFormat:@"%lu", (unsigned long)open] : nil;
-    [[self.tabs.viewControllers objectAtIndex:3] tabBarItem].badgeValue = words ? [NSString stringWithFormat:@"%lu", (unsigned long)words] : nil;
+    _navList.tabBarItem.badgeValue = open ? [NSString stringWithFormat:@"%lu", (unsigned long)open] : nil;
+    _navMore.tabBarItem.badgeValue = words ? [NSString stringWithFormat:@"%lu", (unsigned long)words] : nil;
 }
 
 - (void)applicationWillEnterForeground:(UIApplication *)app {
@@ -81,6 +104,7 @@ static UINavigationController *ZNNav(UIViewController *root, NSString *title, NS
     [[NSNotificationCenter defaultCenter] removeObserver:self];
     [_window release];
     [_tabs release];
+    [_navDeals release]; [_navPapers release]; [_navList release]; [_navMore release];
     [super dealloc];
 }
 @end
