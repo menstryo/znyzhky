@@ -113,7 +113,6 @@ static UILabel *ZNLabel(UIFont *f, UIColor *c) {
 
         _tag = [[UIView alloc] init];
         _tagBg = [[UIImageView alloc] initWithImage:ZNTagImage()];
-        _tagBg.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
         [_tag addSubview:_tagBg];
         _old = [[ZNStrikeLabel alloc] init];
         _old.font = [UIFont systemFontOfSize:9];
@@ -227,6 +226,7 @@ static UILabel *ZNLabel(UIFont *f, UIColor *c) {
     CGFloat tw = MIN(w * 0.55f, MAX(46, ps.width + 14));
     _tag.transform = CGAffineTransformIdentity;
     _tag.frame = CGRectMake(w - tw - 4, ZN_PHOTO_H - 22, tw, 33);
+    _tagBg.frame = _tag.bounds; // явно: autoresizing від нульового розміру додавав зайві 26 pt жовтого
     _old.frame = CGRectMake(4, 3, tw - 10, 10);
     _price.frame = CGRectMake(4, 12, tw - 10, 17);
     _tag.transform = CGAffineTransformMakeRotation(-0.05);
