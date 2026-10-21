@@ -4,6 +4,7 @@
 
 // Підпис із перекресленням (на iOS 6 attributedText погано дружить із підсвіткою клітинки)
 @interface ZNStrikeLabel : UILabel
+@property (nonatomic, assign) BOOL noStrike;
 @end
 
 @interface ZNDealCell : UITableViewCell

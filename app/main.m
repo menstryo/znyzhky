@@ -2,9 +2,8 @@
 #import "ZNStore.h"
 #import "ZNDealCell.h"
 #import "ZNTheme.h"
-#import "ZNDealListViewController.h"
-#import "ZNGroupsViewController.h"
-#import "ZNFavoritesViewController.h"
+#import "ZNGridViewController.h"
+#import "ZNShoppingListViewController.h"
 #import "ZNSettingsViewController.h"
 
 @interface ZNAppDelegate : UIResponder <UIApplicationDelegate>
@@ -27,18 +26,14 @@ static UINavigationController *ZNNav(UIViewController *root, NSString *title, NS
     self.window = [[[UIWindow alloc] initWithFrame:[UIScreen mainScreen].bounds] autorelease];
     if ([self.window respondsToSelector:@selector(setTintColor:)]) self.window.tintColor = ZN_ACCENT; // iOS 7+
 
-    ZNDealListViewController *all = [[[ZNDealListViewController alloc] initWithTitle:@"Усі акції" filter:nil] autorelease];
-    ZNGroupsViewController *stores = [[[ZNGroupsViewController alloc] initWithMode:ZNGroupStores] autorelease];
-    ZNGroupsViewController *cats = [[[ZNGroupsViewController alloc] initWithMode:ZNGroupCategories] autorelease];
-    ZNFavoritesViewController *favs = [[[ZNFavoritesViewController alloc] init] autorelease];
-    ZNSettingsViewController *settings = [[[ZNSettingsViewController alloc] init] autorelease];
+    ZNGridViewController *deals = [[[ZNGridViewController alloc] init] autorelease];
+    ZNShoppingListViewController *list = [[[ZNShoppingListViewController alloc] init] autorelease];
+    ZNSettingsViewController *more = [[[ZNSettingsViewController alloc] init] autorelease];
 
     self.tabs = [[[UITabBarController alloc] init] autorelease];
-    self.tabs.viewControllers = @[ ZNNav(all, @"Усі", @"tab-all"),
-                                   ZNNav(stores, @"Магазини", @"tab-stores"),
-                                   ZNNav(cats, @"Категорії", @"tab-cats"),
-                                   ZNNav(favs, @"Обране", @"tab-fav"),
-                                   ZNNav(settings, @"Ще", @"tab-more") ];
+    self.tabs.viewControllers = @[ ZNNav(deals, @"Акції", @"tab-all"),
+                                   ZNNav(list, @"Список", @"tab-list"),
+                                   ZNNav(more, @"Ще", @"tab-more") ];
 
     self.window.rootViewController = self.tabs;
     self.window.backgroundColor = [UIColor whiteColor];
@@ -46,15 +41,19 @@ static UINavigationController *ZNNav(UIViewController *root, NSString *title, NS
 
     [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(updateBadge)
                                                  name:ZNStoreDidUpdateNotification object:nil];
+    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(updateBadge)
+                                                 name:ZNStoreListChangedNotification object:nil];
+    [self updateBadge];
     [[ZNStore shared] refreshIfStale];
     return YES;
 }
 
-// бейдж на «Обране» — скільки товарів зі списку слів зараз в акції
+// бейджі: «Список» — скільки ще купити, «Ще» — скільки товарів зі слів зараз в акції
 - (void)updateBadge {
-    NSUInteger n = [[ZNStore shared] watchMatchCount];
-    UIViewController *fav = [self.tabs.viewControllers objectAtIndex:3];
-    fav.tabBarItem.badgeValue = n ? [NSString stringWithFormat:@"%lu", (unsigned long)n] : nil;
+    ZNStore *st = [ZNStore shared];
+    NSUInteger open = st.listOpenCount, words = st.watchMatchCount;
+    [[self.tabs.viewControllers objectAtIndex:1] tabBarItem].badgeValue = open ? [NSString stringWithFormat:@"%lu", (unsigned long)open] : nil;
+    [[self.tabs.viewControllers objectAtIndex:2] tabBarItem].badgeValue = words ? [NSString stringWithFormat:@"%lu", (unsigned long)words] : nil;
 }
 
 - (void)applicationWillEnterForeground:(UIApplication *)app {

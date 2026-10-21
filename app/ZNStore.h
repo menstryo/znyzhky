@@ -1,16 +1,20 @@
 #import <Foundation/Foundation.h>
 
-extern NSString * const ZNStoreDidUpdateNotification;   // дані змінились (успішне оновлення або зміна налаштувань)
+extern NSString * const ZNStoreDidUpdateNotification;   // змінились дані або фільтри
 extern NSString * const ZNStoreDidFailNotification;     // userInfo[@"error"] — NSError
 extern NSString * const ZNStoreLoadingNotification;     // почалось/закінчилось завантаження
+extern NSString * const ZNStoreListChangedNotification; // змінився список покупок
+
+typedef enum { ZNGroupFood = 0, ZNGroupHome, ZNGroupAll } ZNGroup;
+typedef enum { ZNSortSmart = 0, ZNSortDiscount, ZNSortPrice, ZNSortEnding } ZNSort;
 
 // Товар — NSDictionary з JSON:
-//   id t p o d u c e i l  (+ додані тут: s — id магазину, k — "s:id", tl — назва в нижньому регістрі)
+//   id t p o d u c e i l  (+ додані тут: s — id магазину, k — "s:id", tl — назва в нижньому регістрі, sc — «вигідність»)
 @interface ZNStore : NSObject
 
 + (ZNStore *)shared;
 
-@property (nonatomic, readonly) NSArray *items;        // товари увімкнених магазинів зі знижкою ≥ minDiscount, за знижкою
+@property (nonatomic, readonly) NSArray *items;        // за поточними фільтрами й сортуванням
 @property (nonatomic, readonly) NSArray *allItems;     // усі товари без фільтрів
 @property (nonatomic, readonly) NSArray *stores;       // [{id,name,count,avg,max,ok,updated}]
 @property (nonatomic, readonly) NSArray *categories;   // [{id,name,count}]
@@ -21,13 +25,25 @@ extern NSString * const ZNStoreLoadingNotification;     // почалось/за
 - (void)refresh;
 - (void)refreshIfStale;   // якщо дані старші за 30 хв
 
-// налаштування
+// сервер
 - (NSString *)serverURL;
 - (void)setServerURL:(NSString *)url;
-- (BOOL)isStoreEnabled:(NSString *)storeId;
-- (void)setStore:(NSString *)storeId enabled:(BOOL)on;
+
+// фільтри (зберігаються між запусками)
+- (NSArray *)filterStores;                 // порожньо = усі магазини
+- (void)setFilterStores:(NSArray *)ids;
+- (ZNGroup)filterGroup;
+- (void)setFilterGroup:(ZNGroup)g;
+- (NSArray *)filterCategories;             // порожньо = усі категорії групи
+- (void)setFilterCategories:(NSArray *)ids;
 - (NSInteger)minDiscount;
 - (void)setMinDiscount:(NSInteger)v;
+- (ZNSort)sortMode;
+- (void)setSortMode:(ZNSort)m;
+- (void)resetFilters;
+- (NSUInteger)activeFilterCount;           // скільки фільтрів відрізняється від стандартних
+- (NSArray *)categoryIdsForGroup:(ZNGroup)g;
+- (NSUInteger)countForStores:(NSArray *)stores group:(ZNGroup)g categories:(NSArray *)cats minDiscount:(NSInteger)minD;
 
 // довідники
 - (NSString *)storeName:(NSString *)storeId;
@@ -35,11 +51,14 @@ extern NSString * const ZNStoreLoadingNotification;     // почалось/за
 - (NSString *)categoryEmoji:(NSString *)catId;
 - (NSURL *)imageURLForItem:(NSDictionary *)item;
 
-// обране
-- (BOOL)isFavorite:(NSDictionary *)item;
-- (void)toggleFavorite:(NSDictionary *)item;
-- (NSArray *)favorites;           // актуальні дані, якщо товар ще в акції; інакше збережена копія з ключем "gone"
-- (void)removeFavoriteAtIndex:(NSUInteger)idx;
+// список покупок
+- (BOOL)isInList:(NSDictionary *)item;
+- (void)toggleInList:(NSDictionary *)item;
+- (NSArray *)listEntries;                  // актуальні дані + "done"; якщо акція зникла — копія з "gone"
+- (void)setDone:(BOOL)done forKey:(NSString *)key;
+- (void)removeFromListKey:(NSString *)key;
+- (void)clearListOnlyDone:(BOOL)onlyDone;
+- (NSUInteger)listOpenCount;               // ще не куплено
 
 // слова для відстеження
 - (NSArray *)watchWords;
@@ -52,5 +71,6 @@ extern NSString * const ZNStoreLoadingNotification;     // почалось/за
 
 // форматування
 NSString *ZNPrice(id number);          // 45,99 грн
+NSString *ZNPriceShort(id number);     // 45,99
 NSString *ZNDateShort(NSString *iso);  // 2026-10-27 → 27.10
 NSInteger ZNDaysLeft(NSString *iso);   // днів до кінця (0 — сьогодні), NSNotFound якщо немає дати

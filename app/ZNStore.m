@@ -5,6 +5,7 @@
 NSString * const ZNStoreDidUpdateNotification = @"ZNStoreDidUpdateNotification";
 NSString * const ZNStoreDidFailNotification   = @"ZNStoreDidFailNotification";
 NSString * const ZNStoreLoadingNotification   = @"ZNStoreLoadingNotification";
+NSString * const ZNStoreListChangedNotification = @"ZNStoreListChangedNotification";
 
 static NSString * const kDefaultServer = @"https://menstryo.github.io/znyzhky";
 
@@ -38,8 +39,11 @@ static NSString * const kDefaultServer = @"https://menstryo.github.io/znyzhky";
     if ((self = [super init])) {
         [[self d] registerDefaults:@{ @"serverURL": kDefaultServer,
                                       @"minDiscount": @0,
-                                      @"disabledStores": @[],
-                                      @"favorites": @[],
+                                      @"fStores": @[],
+                                      @"fGroup": @0,
+                                      @"fCats": @[],
+                                      @"fSort": @0,
+                                      @"shopList": @[],
                                       @"watchWords": @[] }];
         _items = [[NSArray alloc] init];
         _allItems = [[NSArray alloc] init];
@@ -74,21 +78,59 @@ static NSString * const kDefaultServer = @"https://menstryo.github.io/znyzhky";
     [[self d] synchronize];
 }
 
-- (BOOL)isStoreEnabled:(NSString *)storeId {
-    return ![[[self d] arrayForKey:@"disabledStores"] containsObject:storeId];
-}
-- (void)setStore:(NSString *)storeId enabled:(BOOL)on {
-    NSMutableArray *a = [[[[self d] arrayForKey:@"disabledStores"] mutableCopy] autorelease];
-    [a removeObject:storeId];
-    if (!on) [a addObject:storeId];
-    [[self d] setObject:a forKey:@"disabledStores"];
-    [[self d] synchronize];
-    [self applyFilters];
+#pragma mark - filters
+
+static NSArray *ZNFoodCats(void) {
+    return @[@"fruits", @"meat", @"dairy", @"bread", @"grocery", @"frozen", @"sweets", @"snacks", @"drinks", @"alcohol"];
 }
 
+- (NSArray *)categoryIdsForGroup:(ZNGroup)g {
+    NSArray *food = ZNFoodCats();
+    NSMutableArray *out = [NSMutableArray array];
+    NSArray *all = self.categories.count ? [self.categories valueForKey:@"id"]
+        : [food arrayByAddingObjectsFromArray:@[@"chem", @"beauty", @"kids", @"pets", @"home", @"other"]];
+    for (NSString *c in all) {
+        BOOL isFood = [food containsObject:c];
+        if (g == ZNGroupAll || (g == ZNGroupFood && isFood) || (g == ZNGroupHome && !isFood)) [out addObject:c];
+    }
+    return out;
+}
+
+- (NSArray *)filterStores { return [[self d] arrayForKey:@"fStores"] ?: @[]; }
+- (void)setFilterStores:(NSArray *)ids { [[self d] setObject:ids ?: @[] forKey:@"fStores"]; [self saveAndApply]; }
+- (ZNGroup)filterGroup { return (ZNGroup)[[self d] integerForKey:@"fGroup"]; }
+- (void)setFilterGroup:(ZNGroup)g {
+    [[self d] setInteger:g forKey:@"fGroup"];
+    [[self d] setObject:@[] forKey:@"fCats"]; // категорії іншої групи вже не мають сенсу
+    [self saveAndApply];
+}
+- (NSArray *)filterCategories { return [[self d] arrayForKey:@"fCats"] ?: @[]; }
+- (void)setFilterCategories:(NSArray *)ids { [[self d] setObject:ids ?: @[] forKey:@"fCats"]; [self saveAndApply]; }
 - (NSInteger)minDiscount { return [[self d] integerForKey:@"minDiscount"]; }
-- (void)setMinDiscount:(NSInteger)v {
-    [[self d] setInteger:v forKey:@"minDiscount"];
+- (void)setMinDiscount:(NSInteger)v { [[self d] setInteger:v forKey:@"minDiscount"]; [self saveAndApply]; }
+- (ZNSort)sortMode { return (ZNSort)[[self d] integerForKey:@"fSort"]; }
+- (void)setSortMode:(ZNSort)m { [[self d] setInteger:m forKey:@"fSort"]; [self saveAndApply]; }
+
+- (void)resetFilters {
+    NSUserDefaults *d = [self d];
+    [d setObject:@[] forKey:@"fStores"];
+    [d setInteger:ZNGroupFood forKey:@"fGroup"];
+    [d setObject:@[] forKey:@"fCats"];
+    [d setInteger:0 forKey:@"minDiscount"];
+    [d setInteger:ZNSortSmart forKey:@"fSort"];
+    [self saveAndApply];
+}
+
+- (NSUInteger)activeFilterCount {
+    NSUInteger n = 0;
+    if (self.filterStores.count) n++;
+    if (self.filterGroup != ZNGroupFood) n++;
+    if (self.filterCategories.count) n++;
+    if (self.minDiscount > 0) n++;
+    return n;
+}
+
+- (void)saveAndApply {
     [[self d] synchronize];
     [self applyFilters];
 }
@@ -133,6 +175,17 @@ static NSString * const kDefaultServer = @"https://menstryo.github.io/znyzhky";
 - (NSString *)indexPath { return [[self cacheDir] stringByAppendingPathComponent:@"index.json"]; }
 - (NSString *)pathForStore:(NSString *)sid {
     return [[self cacheDir] stringByAppendingPathComponent:[NSString stringWithFormat:@"store-%@.json", sid]];
+}
+
+// «Вигідні»: відсоток знижки, зважений на реальну економію в гривнях —
+// щоб декор за 2 грн «−99%» не витісняв сир за 19,90 замість 99,90.
+static double ZNSmartScore(NSDictionary *it) {
+    double p = [[it objectForKey:@"p"] doubleValue], o = [[it objectForKey:@"o"] doubleValue];
+    double d = [[it objectForKey:@"d"] doubleValue];
+    double saving = MAX(0, o - p);
+    double w = MIN(1.0, sqrt(saving / 60.0));
+    if (p < 10) w *= 0.35;
+    return d * w;
 }
 
 static id ZNParse(NSData *data) {
@@ -250,6 +303,7 @@ static NSDate *ZNParseISODate(NSString *s) {
                 [m setObject:sid forKey:@"s"];
                 [m setObject:key forKey:@"k"];
                 [m setObject:[[it objectForKey:@"t"] lowercaseString] ?: @"" forKey:@"tl"];
+                [m setObject:@(ZNSmartScore(it)) forKey:@"sc"];
                 [all addObject:m];
                 [byKey setObject:m forKey:key];
                 [m release];
@@ -280,71 +334,139 @@ static NSDate *ZNParseISODate(NSString *s) {
     });
 }
 
+static BOOL ZNPasses(NSDictionary *it, NSArray *stores, NSArray *cats, NSInteger minD) {
+    if ([[it objectForKey:@"d"] integerValue] < minD) return NO;
+    if (stores.count && ![stores containsObject:[it objectForKey:@"s"]]) return NO;
+    if (cats && ![cats containsObject:[it objectForKey:@"c"]]) return NO;
+    return YES;
+}
+
+- (NSArray *)catsFor:(ZNGroup)g selected:(NSArray *)sel {
+    if (sel.count) return sel;
+    return g == ZNGroupAll ? nil : [self categoryIdsForGroup:g];
+}
+
+- (NSUInteger)countForStores:(NSArray *)stores group:(ZNGroup)g categories:(NSArray *)cats minDiscount:(NSInteger)minD {
+    NSArray *c = [self catsFor:g selected:cats];
+    NSUInteger n = 0;
+    for (NSDictionary *it in self.allItems) if (ZNPasses(it, stores, c, minD)) n++;
+    return n;
+}
+
 - (void)applyFilters {
+    NSArray *stores = self.filterStores;
+    NSArray *cats = [self catsFor:self.filterGroup selected:self.filterCategories];
     NSInteger minD = self.minDiscount;
-    NSArray *disabled = [[self d] arrayForKey:@"disabledStores"];
     NSMutableArray *out = [NSMutableArray arrayWithCapacity:self.allItems.count];
-    for (NSDictionary *it in self.allItems) {
-        if ([[it objectForKey:@"d"] integerValue] < minD) continue;
-        if (disabled.count && [disabled containsObject:[it objectForKey:@"s"]]) continue;
-        [out addObject:it];
+    for (NSDictionary *it in self.allItems) if (ZNPasses(it, stores, cats, minD)) [out addObject:it];
+
+    ZNSort mode = self.sortMode;
+    [out sortUsingComparator:^NSComparisonResult(NSDictionary *a, NSDictionary *b) {
+        if (mode == ZNSortPrice) return [[a objectForKey:@"p"] compare:[b objectForKey:@"p"]];
+        if (mode == ZNSortDiscount) {
+            NSComparisonResult r = [[b objectForKey:@"d"] compare:[a objectForKey:@"d"]];
+            return r != NSOrderedSame ? r : [[a objectForKey:@"p"] compare:[b objectForKey:@"p"]];
+        }
+        if (mode == ZNSortEnding) {
+            // з датою — першими, найближчі зверху
+            NSString *ea = [a objectForKey:@"e"], *eb = [b objectForKey:@"e"];
+            if (ea && !eb) return NSOrderedAscending;
+            if (!ea && eb) return NSOrderedDescending;
+            if (ea && eb) { NSComparisonResult r = [ea compare:eb]; if (r != NSOrderedSame) return r; }
+        }
+        return [[b objectForKey:@"sc"] compare:[a objectForKey:@"sc"]];
+    }];
+    if (mode == ZNSortEnding) {
+        // минулі дати (прострочені в кеші) прибираємо
+        NSMutableArray *fresh = [NSMutableArray arrayWithCapacity:out.count];
+        for (NSDictionary *it in out) {
+            NSInteger left = ZNDaysLeft([it objectForKey:@"e"]);
+            if (left == NSNotFound || left >= 0) [fresh addObject:it];
+        }
+        out = fresh;
     }
     self.items = out;
     [[NSNotificationCenter defaultCenter] postNotificationName:ZNStoreDidUpdateNotification object:self];
 }
 
-#pragma mark - favorites
+#pragma mark - shopping list
 
-- (NSArray *)favoriteSnapshots { return [[self d] arrayForKey:@"favorites"] ?: @[]; }
+- (NSArray *)listRaw { return [[self d] arrayForKey:@"shopList"] ?: @[]; }
 
-- (BOOL)isFavorite:(NSDictionary *)item {
+- (void)saveList:(NSArray *)a {
+    [[self d] setObject:a forKey:@"shopList"];
+    [[self d] synchronize];
+    [[NSNotificationCenter defaultCenter] postNotificationName:ZNStoreListChangedNotification object:self];
+}
+
+- (BOOL)isInList:(NSDictionary *)item {
     NSString *k = [item objectForKey:@"k"];
-    for (NSDictionary *f in [self favoriteSnapshots]) if ([[f objectForKey:@"k"] isEqual:k]) return YES;
+    for (NSDictionary *f in [self listRaw]) if ([[f objectForKey:@"k"] isEqual:k]) return YES;
     return NO;
 }
 
-- (void)toggleFavorite:(NSDictionary *)item {
+- (void)toggleInList:(NSDictionary *)item {
     NSString *k = [item objectForKey:@"k"];
     if (!k) return;
-    NSMutableArray *a = [[[self favoriteSnapshots] mutableCopy] autorelease];
+    NSMutableArray *a = [[[self listRaw] mutableCopy] autorelease];
     for (NSUInteger i = 0; i < a.count; i++) {
         if ([[[a objectAtIndex:i] objectForKey:@"k"] isEqual:k]) {
             [a removeObjectAtIndex:i];
-            [[self d] setObject:a forKey:@"favorites"];
-            [[self d] synchronize];
+            [self saveList:a];
             return;
         }
     }
-    // зберігаємо копію без службових полів (лише plist-сумісні значення)
+    // копія без службових полів (лише plist-сумісні значення)
     NSMutableDictionary *snap = [NSMutableDictionary dictionary];
     for (NSString *key in @[@"id", @"t", @"p", @"o", @"d", @"u", @"c", @"e", @"i", @"l", @"s", @"k"]) {
         id v = [item objectForKey:key];
         if ([v isKindOfClass:[NSString class]] || [v isKindOfClass:[NSNumber class]]) [snap setObject:v forKey:key];
     }
-    [a insertObject:snap atIndex:0];
-    [[self d] setObject:a forKey:@"favorites"];
-    [[self d] synchronize];
+    [snap setObject:@NO forKey:@"done"];
+    [a addObject:snap];
+    [self saveList:a];
 }
 
-- (NSArray *)favorites {
+- (NSArray *)listEntries {
     NSMutableArray *out = [NSMutableArray array];
-    for (NSDictionary *f in [self favoriteSnapshots]) {
+    for (NSDictionary *f in [self listRaw]) {
         NSDictionary *live = [self.itemsByKey objectForKey:[f objectForKey:@"k"]];
-        if (live) [out addObject:live];
-        else {
-            NSMutableDictionary *m = [[f mutableCopy] autorelease];
-            [m setObject:@YES forKey:@"gone"];
-            [out addObject:m];
-        }
+        NSMutableDictionary *m = [[(live ?: f) mutableCopy] autorelease];
+        [m setObject:[f objectForKey:@"done"] ?: @NO forKey:@"done"];
+        if (!live && self.allItems.count) [m setObject:@YES forKey:@"gone"];
+        [out addObject:m];
     }
     return out;
 }
 
-- (void)removeFavoriteAtIndex:(NSUInteger)idx {
-    NSMutableArray *a = [[[self favoriteSnapshots] mutableCopy] autorelease];
-    if (idx < a.count) [a removeObjectAtIndex:idx];
-    [[self d] setObject:a forKey:@"favorites"];
-    [[self d] synchronize];
+- (void)setDone:(BOOL)done forKey:(NSString *)key {
+    NSMutableArray *a = [NSMutableArray array];
+    for (NSDictionary *f in [self listRaw]) {
+        if ([[f objectForKey:@"k"] isEqual:key]) {
+            NSMutableDictionary *m = [[f mutableCopy] autorelease];
+            [m setObject:@(done) forKey:@"done"];
+            [a addObject:m];
+        } else [a addObject:f];
+    }
+    [self saveList:a];
+}
+
+- (void)removeFromListKey:(NSString *)key {
+    NSMutableArray *a = [NSMutableArray array];
+    for (NSDictionary *f in [self listRaw]) if (![[f objectForKey:@"k"] isEqual:key]) [a addObject:f];
+    [self saveList:a];
+}
+
+- (void)clearListOnlyDone:(BOOL)onlyDone {
+    NSMutableArray *a = [NSMutableArray array];
+    if (onlyDone) for (NSDictionary *f in [self listRaw]) if (![[f objectForKey:@"done"] boolValue]) [a addObject:f];
+    [self saveList:a];
+}
+
+- (NSUInteger)listOpenCount {
+    NSUInteger n = 0;
+    for (NSDictionary *f in [self listRaw]) if (![[f objectForKey:@"done"] boolValue]) n++;
+    return n;
 }
 
 #pragma mark - watch words
@@ -393,7 +515,7 @@ static NSDate *ZNParseISODate(NSString *s) {
 - (NSUInteger)watchMatchCount {
     NSMutableSet *keys = [NSMutableSet set];
     for (NSString *w in self.watchWords)
-        for (NSDictionary *it in [self itemsMatchingText:w inItems:self.items]) [keys addObject:[it objectForKey:@"k"]];
+        for (NSDictionary *it in [self itemsMatchingText:w inItems:self.allItems]) [keys addObject:[it objectForKey:@"k"]];
     return keys.count;
 }
 
@@ -405,6 +527,12 @@ NSString *ZNPrice(id number) {
     double v = [number doubleValue];
     NSString *s = (fabs(v - round(v)) < 0.005) ? [NSString stringWithFormat:@"%.0f", v] : [NSString stringWithFormat:@"%.2f", v];
     return [[s stringByReplacingOccurrencesOfString:@"." withString:@","] stringByAppendingString:@" грн"];
+}
+
+NSString *ZNPriceShort(id number) {
+    double v = [number doubleValue];
+    NSString *s = (fabs(v - round(v)) < 0.005) ? [NSString stringWithFormat:@"%.0f", v] : [NSString stringWithFormat:@"%.2f", v];
+    return [s stringByReplacingOccurrencesOfString:@"." withString:@","];
 }
 
 NSString *ZNDateShort(NSString *iso) {

@@ -150,8 +150,8 @@ enum { ZNSecInfo = 0, ZNSecActions };
     c.textLabel.textAlignment = NSTextAlignmentCenter;
     c.textLabel.textColor = ZN_ACCENT_DARK;
     if (ip.row == 0) {
-        BOOL fav = [[ZNStore shared] isFavorite:_item];
-        c.textLabel.text = fav ? @"★ Прибрати з обраного" : @"☆ Додати в обране";
+        BOOL in = [[ZNStore shared] isInList:_item];
+        c.textLabel.text = in ? @"✓ У списку — прибрати" : @"+ Додати до списку";
     } else if (ip.row == 1) {
         c.textLabel.text = @"Скопіювати назву";
     } else {
@@ -164,7 +164,7 @@ enum { ZNSecInfo = 0, ZNSecActions };
     [tv deselectRowAtIndexPath:ip animated:YES];
     if (ip.section != ZNSecActions) return;
     if (ip.row == 0) {
-        [[ZNStore shared] toggleFavorite:_item];
+        [[ZNStore shared] toggleInList:_item];
         [tv reloadRowsAtIndexPaths:@[ip] withRowAnimation:UITableViewRowAnimationFade];
     } else if (ip.row == 1) {
         [UIPasteboard generalPasteboard].string = [_item objectForKey:@"t"];

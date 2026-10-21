@@ -4,8 +4,11 @@
 #import <QuartzCore/QuartzCore.h>
 
 @implementation ZNStrikeLabel
+@synthesize noStrike = _noStrike;
+- (void)setNoStrike:(BOOL)v { _noStrike = v; [self setNeedsDisplay]; }
 - (void)drawTextInRect:(CGRect)rect {
     [super drawTextInRect:rect];
+    if (_noStrike || !self.text.length) return;
     CGSize sz = [self.text sizeWithFont:self.font];
     CGFloat w = MIN(sz.width, rect.size.width);
     CGFloat x = rect.origin.x;
