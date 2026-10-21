@@ -2,8 +2,9 @@
 #import "ZNGridViewController.h"
 #import "ZNStore.h"
 #import "ZNTheme.h"
+#import "ZNLeafletsViewController.h"
 
-enum { ZNSecWords = 0, ZNSecData, ZNSecAbout, ZNSecCount };
+enum { ZNSecCity = 0, ZNSecWords, ZNSecData, ZNSecAbout, ZNSecCount };
 
 @implementation ZNSettingsViewController
 
@@ -38,14 +39,16 @@ enum { ZNSecWords = 0, ZNSecData, ZNSecAbout, ZNSecCount };
 
 - (NSString *)titleFor:(NSInteger)s {
     switch (s) {
+        case ZNSecCity:  return @"Місто";
         case ZNSecWords: return @"Відстежувати слова";
         case ZNSecData:  return @"Дані";
         default:         return @"Про застосунок";
     }
 }
 - (NSString *)footerFor:(NSInteger)s {
+    if (s == ZNSecCity) return @"Для Metro, Novus, ЕКО маркет і газеток місцевих мереж. Сільпо, АТБ, Varus і Аврора — однакові по всій Україні.";
     if (s == ZNSecWords) return @"Наприклад «кава», «Nivea», «підгузки». Бейдж на вкладці «Ще» покаже, скільки таких товарів зараз в акції в усіх магазинах.";
-    if (s == ZNSecData) return @"Акції збираються на сервері кожні 4 години. Ціни загальнонаціональні й можуть трохи відрізнятися в окремих магазинах.";
+    if (s == ZNSecData) return @"Акції збираються на сервері кожні 4 години. Ціни національних мереж можуть трохи відрізнятися в окремих магазинах.";
     return @"Знижки не пов'язані з жодною мережею магазинів.";
 }
 - (UIView *)tableView:(UITableView *)tv viewForHeaderInSection:(NSInteger)s {
@@ -64,6 +67,7 @@ enum { ZNSecWords = 0, ZNSecData, ZNSecAbout, ZNSecCount };
 - (NSInteger)numberOfSectionsInTableView:(UITableView *)tv { return ZNSecCount; }
 
 - (NSInteger)tableView:(UITableView *)tv numberOfRowsInSection:(NSInteger)s {
+    if (s == ZNSecCity) return 1;
     if (s == ZNSecWords) return [ZNStore shared].watchWords.count + 1;
     return 3;
 }
@@ -79,7 +83,12 @@ enum { ZNSecWords = 0, ZNSecData, ZNSecAbout, ZNSecCount };
     UITableViewCell *c = [[[UITableViewCell alloc] initWithStyle:UITableViewCellStyleValue1 reuseIdentifier:nil] autorelease];
     c.detailTextLabel.textColor = ZN_TEXT_MUTED;
     ZNStore *st = [ZNStore shared];
-    if (ip.section == ZNSecWords) {
+    if (ip.section == ZNSecCity) {
+        c.textLabel.text = @"Ваше місто";
+        c.detailTextLabel.text = st.cityName ?: @"не вибрано";
+        if (!st.cityId) c.detailTextLabel.textColor = ZN_ACCENT_DARK;
+        c.accessoryType = UITableViewCellAccessoryDisclosureIndicator;
+    } else if (ip.section == ZNSecWords) {
         NSArray *words = st.watchWords;
         if (ip.row < (NSInteger)words.count) {
             NSString *w = [words objectAtIndex:ip.row];
@@ -139,7 +148,9 @@ enum { ZNSecWords = 0, ZNSecData, ZNSecAbout, ZNSecCount };
 - (void)tableView:(UITableView *)tv didSelectRowAtIndexPath:(NSIndexPath *)ip {
     [tv deselectRowAtIndexPath:ip animated:YES];
     ZNStore *st = [ZNStore shared];
-    if (ip.section == ZNSecWords) {
+    if (ip.section == ZNSecCity) {
+        [self.navigationController pushViewController:[[[ZNCityPickerViewController alloc] init] autorelease] animated:YES];
+    } else if (ip.section == ZNSecWords) {
         if (ip.row < (NSInteger)st.watchWords.count) {
             NSString *w = [st.watchWords objectAtIndex:ip.row];
             if (![st itemsMatchingText:w inItems:st.allItems].count) return;

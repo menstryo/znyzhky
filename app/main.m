@@ -5,6 +5,7 @@
 #import "ZNGridViewController.h"
 #import "ZNShoppingListViewController.h"
 #import "ZNSettingsViewController.h"
+#import "ZNLeafletsViewController.h"
 
 @interface ZNAppDelegate : UIResponder <UIApplicationDelegate>
 @property (nonatomic, retain) UIWindow *window;
@@ -27,11 +28,13 @@ static UINavigationController *ZNNav(UIViewController *root, NSString *title, NS
     if ([self.window respondsToSelector:@selector(setTintColor:)]) self.window.tintColor = ZN_ACCENT; // iOS 7+
 
     ZNGridViewController *deals = [[[ZNGridViewController alloc] init] autorelease];
+    ZNLeafletsViewController *papers = [[[ZNLeafletsViewController alloc] init] autorelease];
     ZNShoppingListViewController *list = [[[ZNShoppingListViewController alloc] init] autorelease];
     ZNSettingsViewController *more = [[[ZNSettingsViewController alloc] init] autorelease];
 
     self.tabs = [[[UITabBarController alloc] init] autorelease];
     self.tabs.viewControllers = @[ ZNNav(deals, @"Акції", @"tab-all"),
+                                   ZNNav(papers, @"Газетки", @"tab-news"),
                                    ZNNav(list, @"Список", @"tab-list"),
                                    ZNNav(more, @"Ще", @"tab-more") ];
 
@@ -45,15 +48,29 @@ static UINavigationController *ZNNav(UIViewController *root, NSString *title, NS
                                                  name:ZNStoreListChangedNotification object:nil];
     [self updateBadge];
     [[ZNStore shared] refreshIfStale];
+    // перший запуск — спитати місто (один раз)
+    NSUserDefaults *ud = [NSUserDefaults standardUserDefaults];
+    if (![ZNStore shared].cityId && ![ud boolForKey:@"cityAsked"]) {
+        [ud setBool:YES forKey:@"cityAsked"];
+        [self performSelector:@selector(askCity) withObject:nil afterDelay:0.6];
+    }
     return YES;
+}
+
+- (void)askCity {
+    ZNCityPickerViewController *p = [[[ZNCityPickerViewController alloc] init] autorelease];
+    p.modal = YES;
+    p.title = @"Ваше місто";
+    UINavigationController *n = [[[UINavigationController alloc] initWithRootViewController:p] autorelease];
+    [self.tabs presentViewController:n animated:YES completion:nil];
 }
 
 // бейджі: «Список» — скільки ще купити, «Ще» — скільки товарів зі слів зараз в акції
 - (void)updateBadge {
     ZNStore *st = [ZNStore shared];
     NSUInteger open = st.listOpenCount, words = st.watchMatchCount;
-    [[self.tabs.viewControllers objectAtIndex:1] tabBarItem].badgeValue = open ? [NSString stringWithFormat:@"%lu", (unsigned long)open] : nil;
-    [[self.tabs.viewControllers objectAtIndex:2] tabBarItem].badgeValue = words ? [NSString stringWithFormat:@"%lu", (unsigned long)words] : nil;
+    [[self.tabs.viewControllers objectAtIndex:2] tabBarItem].badgeValue = open ? [NSString stringWithFormat:@"%lu", (unsigned long)open] : nil;
+    [[self.tabs.viewControllers objectAtIndex:3] tabBarItem].badgeValue = words ? [NSString stringWithFormat:@"%lu", (unsigned long)words] : nil;
 }
 
 - (void)applicationWillEnterForeground:(UIApplication *)app {

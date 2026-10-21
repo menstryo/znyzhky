@@ -17,6 +17,8 @@ static NSString * const kDefaultServer = @"https://menstryo.github.io/znyzhky";
 @property (nonatomic, retain, readwrite) NSArray *allItems;
 @property (nonatomic, retain, readwrite) NSArray *stores;
 @property (nonatomic, retain, readwrite) NSArray *categories;
+@property (nonatomic, retain, readwrite) NSArray *cities;
+@property (nonatomic, retain, readwrite) NSArray *leaflets;
 @property (nonatomic, retain, readwrite) NSDate *updatedAt;
 @property (nonatomic, retain, readwrite) NSDate *fetchedAt;
 @property (nonatomic, assign, readwrite) BOOL loading;
@@ -26,6 +28,7 @@ static NSString * const kDefaultServer = @"https://menstryo.github.io/znyzhky";
 @implementation ZNStore
 
 @synthesize items = _items, allItems = _allItems, stores = _stores, categories = _categories;
+@synthesize cities = _cities, leaflets = _leaflets;
 @synthesize updatedAt = _updatedAt, fetchedAt = _fetchedAt, loading = _loading, itemsByKey = _itemsByKey;
 
 + (ZNStore *)shared {
@@ -49,6 +52,8 @@ static NSString * const kDefaultServer = @"https://menstryo.github.io/znyzhky";
         _allItems = [[NSArray alloc] init];
         _stores = [[NSArray alloc] init];
         _categories = [[NSArray alloc] init];
+        _cities = [[NSArray alloc] init];
+        _leaflets = [[NSArray alloc] init];
         id f = [[self d] objectForKey:@"fetchedAt"];
         if ([f isKindOfClass:[NSDate class]]) _fetchedAt = [f retain];
         [self rebuildFromCache:nil];
@@ -57,7 +62,7 @@ static NSString * const kDefaultServer = @"https://menstryo.github.io/znyzhky";
 }
 
 - (void)dealloc {
-    [_items release]; [_allItems release]; [_stores release]; [_categories release];
+    [_items release]; [_allItems release]; [_stores release]; [_categories release]; [_cities release]; [_leaflets release];
     [_updatedAt release]; [_fetchedAt release]; [_itemsByKey release];
     [super dealloc];
 }
@@ -173,6 +178,44 @@ static NSArray *ZNFoodCats(void) {
     return dir;
 }
 - (NSString *)indexPath { return [[self cacheDir] stringByAppendingPathComponent:@"index.json"]; }
+- (NSString *)pathForLeaflets:(NSString *)city {
+    return [[self cacheDir] stringByAppendingPathComponent:[NSString stringWithFormat:@"leaflets-%@.json", city]];
+}
+
+#pragma mark - city
+
+- (NSString *)cityId {
+    NSString *c = [[self d] stringForKey:@"cityId"];
+    return c.length ? c : nil;
+}
+
+- (NSString *)cityName {
+    NSString *cid = self.cityId;
+    if (!cid) return nil;
+    for (NSDictionary *c in self.cities) if ([[c objectForKey:@"id"] isEqual:cid]) return [c objectForKey:@"name"];
+    return cid;
+}
+
+- (void)setCityId:(NSString *)cityId {
+    if ([cityId isEqualToString:self.cityId]) return;
+    [[self d] setObject:cityId ?: @"" forKey:@"cityId"];
+    [[self d] setObject:@[] forKey:@"fStores"]; // магазини іншого міста у фільтрі вже не мають сенсу
+    [[self d] synchronize];
+    [self rebuildFromCache:^{ [self refresh]; }];
+}
+
+- (NSURL *)urlForPath:(NSString *)relPath {
+    if (![relPath isKindOfClass:[NSString class]] || !relPath.length) return nil;
+    return [NSURL URLWithString:[NSString stringWithFormat:@"%@/%@", self.serverURL, relPath]];
+}
+
+// магазин показуємо, якщо він загальнонаціональний або з вибраного міста
+- (BOOL)storeVisible:(NSDictionary *)s {
+    NSString *city = [s objectForKey:@"city"];
+    if (![city isKindOfClass:[NSString class]]) return YES;
+    return [city isEqualToString:self.cityId];
+}
+
 - (NSString *)pathForStore:(NSString *)sid {
     return [[self cacheDir] stringByAppendingPathComponent:[NSString stringWithFormat:@"store-%@.json", sid]];
 }
@@ -186,6 +229,11 @@ static double ZNSmartScore(NSDictionary *it) {
     double w = MIN(1.0, sqrt(saving / 60.0));
     if (p < 10) w *= 0.35;
     return d * w;
+}
+
+static NSString *ZNTodayISO(void) {
+    NSDateComponents *c = [[NSCalendar currentCalendar] components:NSYearCalendarUnit | NSMonthCalendarUnit | NSDayCalendarUnit fromDate:[NSDate date]];
+    return [NSString stringWithFormat:@"%04ld-%02ld-%02ld", (long)c.year, (long)c.month, (long)c.day];
 }
 
 static id ZNParse(NSData *data) {
@@ -258,6 +306,7 @@ static NSDate *ZNParseISODate(NSString *s) {
             NSString *sid = [s objectForKey:@"id"];
             id upd = [s objectForKey:@"updated"];
             if (![sid isKindOfClass:[NSString class]] || [[s objectForKey:@"count"] integerValue] == 0) continue;
+            if (![self storeVisible:s]) continue;
             BOOL have = [[NSFileManager defaultManager] fileExistsAtPath:[self pathForStore:sid]];
             if (have && [upd isKindOfClass:[NSString class]] && [upd isEqualToString:[oldUpdated objectForKey:sid]]) continue;
             _pending++;
@@ -266,6 +315,16 @@ static NSDate *ZNParseISODate(NSString *s) {
                 NSInteger c2 = ZNStatusCode(r2);
                 if (c2 == 200 && ZNParse(d2)) [d2 writeToFile:[self pathForStore:sid] atomically:YES];
                 else [self fail:e2];
+                if (--_pending == 0) [self finishRefresh];
+            }];
+        }
+        // газетки міста — файл невеликий, тягнемо щоразу
+        NSString *city = self.cityId;
+        if (city) {
+            _pending++;
+            NSString *p = [NSString stringWithFormat:@"leaflets/%@.json", city];
+            [ZNRequest start:[self requestForPath:p] done:^(NSURLResponse *r2, NSData *d2, NSError *e2) {
+                if (ZNStatusCode(r2) == 200 && ZNParse(d2)) [d2 writeToFile:[self pathForLeaflets:city] atomically:YES];
                 if (--_pending == 0) [self finishRefresh];
             }];
         }
@@ -291,9 +350,12 @@ static NSDate *ZNParseISODate(NSString *s) {
         NSDictionary *index = ZNParse([NSData dataWithContentsOfFile:[self indexPath]]);
         NSMutableArray *all = [NSMutableArray arrayWithCapacity:8000];
         NSMutableDictionary *byKey = [NSMutableDictionary dictionaryWithCapacity:8000];
+        NSMutableArray *visible = [NSMutableArray array];
         for (NSDictionary *s in [index objectForKey:@"stores"]) {
             NSString *sid = [s objectForKey:@"id"];
             if (![sid isKindOfClass:[NSString class]]) continue;
+            if (![self storeVisible:s]) continue;
+            [visible addObject:s];
             NSAutoreleasePool *inner = [[NSAutoreleasePool alloc] init];
             NSDictionary *j = ZNParse([NSData dataWithContentsOfFile:[self pathForStore:sid]]);
             for (NSDictionary *it in [j objectForKey:@"items"]) {
@@ -315,8 +377,22 @@ static NSDate *ZNParseISODate(NSString *s) {
             if (da != db) return da > db ? NSOrderedAscending : NSOrderedDescending;
             return [[a objectForKey:@"p"] compare:[b objectForKey:@"p"]];
         }];
-        NSArray *stores = [index objectForKey:@"stores"] ?: @[];
+        NSArray *stores = visible;
         NSArray *cats = [index objectForKey:@"cats"] ?: @[];
+        NSArray *cities = [index objectForKey:@"cities"] ?: @[];
+        NSString *city = self.cityId;
+        NSArray *lfs = city ? [ZNParse([NSData dataWithContentsOfFile:[self pathForLeaflets:city]]) objectForKey:@"leaflets"] : nil;
+        if (![lfs isKindOfClass:[NSArray class]]) lfs = @[];
+        // прострочені газетки не показуємо
+        NSMutableArray *fresh = [NSMutableArray array];
+        NSString *today = ZNTodayISO();
+        for (NSDictionary *l in lfs) {
+            NSString *to = [l objectForKey:@"to"];
+            if ([to isKindOfClass:[NSString class]] && [to compare:today] == NSOrderedAscending) continue;
+            [fresh addObject:l];
+        }
+        lfs = fresh;
+        [cities retain]; [lfs retain];
         NSDate *upd = ZNParseISODate([index objectForKey:@"updated"]);
         [all retain]; [byKey retain]; [stores retain]; [cats retain]; [upd retain];
         [pool release];
@@ -325,6 +401,9 @@ static NSDate *ZNParseISODate(NSString *s) {
             self.itemsByKey = byKey;
             self.stores = stores;
             self.categories = cats;
+            self.cities = cities;
+            self.leaflets = lfs;
+            [cities release]; [lfs release];
             if (upd) self.updatedAt = upd;
             [all release]; [byKey release]; [stores release]; [cats release]; [upd release];
             [self applyFilters];

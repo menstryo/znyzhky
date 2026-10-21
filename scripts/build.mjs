@@ -13,6 +13,9 @@ import * as silpo from "./sources/silpo.mjs";
 import * as atb from "./sources/atb.mjs";
 import * as varus from "./sources/varus.mjs";
 import * as avrora from "./sources/avrora.mjs";
+import * as zakaz from "./sources/zakaz.mjs";
+import { CITIES, ZAKAZ_CHAINS, LEAFLET_CHAINS } from "./cities.mjs";
+import { fetchLeaflets, fetchForta } from "./leaflets.mjs";
 
 const SOURCES = [silpo, atb, varus, avrora];
 
@@ -25,11 +28,15 @@ const OUT = path.resolve("public");
 const IMG_CACHE = path.resolve(".cache/img");
 const PAGES_URL = (process.env.PAGES_URL || "").replace(/\/$/, "");
 const PER_CATEGORY = +process.env.PER_CATEGORY || 150; // макс. товарів на категорію в одному магазині
+const PER_CATEGORY_CITY = 80;                           // для міських магазинів (їх багато)
+const LF_CACHE = path.resolve(".cache/lf");
+const LF_WIDTH = 640;                                    // ширина сторінки газетки (320 pt @2x)
 const MIN_DISCOUNT = 5;
 const THUMB = 120;
 
 fs.rmSync(OUT, { recursive: true, force: true });
 fs.mkdirSync(path.join(OUT, "store"), { recursive: true });
+fs.mkdirSync(path.join(OUT, "leaflets"), { recursive: true });
 fs.mkdirSync(IMG_CACHE, { recursive: true });
 
 const now = new Date();
@@ -37,7 +44,7 @@ const today = todayISO(now);
 const farDate = todayISO(new Date(now.getTime() + 120 * 864e5));
 const catIds = new Set(CATEGORIES.map(c => c.id));
 
-function finalize(items) {
+function finalize(items, perCat = PER_CATEGORY) {
   const out = [];
   for (const it of items) {
     if (!it || !it.t || !(it.p > 0) || !(it.o > it.p)) continue;
@@ -56,7 +63,7 @@ function finalize(items) {
   const kept = [];
   for (const list of byCat.values()) {
     list.sort((a, b) => b.d - a.d || a.p - b.p);
-    kept.push(...list.slice(0, PER_CATEGORY));
+    kept.push(...list.slice(0, perCat));
   }
   kept.sort((a, b) => b.d - a.d || a.p - b.p);
   return kept;
@@ -74,8 +81,13 @@ const imgErrLogged = {};
 const NO_IMAGES = !!process.env.NO_IMAGES;
 
 async function thumb(storeId, src) {
+  return thumbIn(storeId, storeId, src);
+}
+
+// dir — папка мініатюр: для міських магазинів спільна на мережу (Metro у різних містах — ті самі фото)
+async function thumbIn(storeId, dir, src) {
   const name = `${hashOf(src)}.jpg`;
-  const cached = path.join(IMG_CACHE, storeId, name);
+  const cached = path.join(IMG_CACHE, dir, name);
   if (!fs.existsSync(cached)) {
     if (NO_IMAGES || (imgFails[storeId] || 0) >= IMG_FAIL_LIMIT) return null;
     try {
@@ -104,10 +116,12 @@ async function thumb(storeId, src) {
       return null;
     }
   }
-  const dst = path.join(OUT, "img", storeId, name);
-  fs.mkdirSync(path.dirname(dst), { recursive: true });
-  fs.copyFileSync(cached, dst);
-  return `img/${storeId}/${name}`;
+  const dst = path.join(OUT, "img", dir, name);
+  if (!fs.existsSync(dst)) {
+    fs.mkdirSync(path.dirname(dst), { recursive: true });
+    fs.copyFileSync(cached, dst);
+  }
+  return `img/${dir}/${name}`;
 }
 
 async function previous(storeId) {
@@ -123,15 +137,19 @@ async function previous(storeId) {
 const storesMeta = [];
 const catCount = Object.fromEntries(CATEGORIES.map(c => [c.id, 0]));
 
-for (const src of SOURCES) {
+// src: { id, name, fetchItems(log), city?, imgDir?, perCat? }
+async function processStore(src) {
   const log = m => console.log(`[${src.id}] ${m}`);
   const t0 = Date.now();
+  const imgDir = src.imgDir || src.id;
   let items = null, updated = now.toISOString(), stale = false;
+  const meta = { id: src.id, name: src.name };
+  if (src.city) meta.city = src.city;
   try {
     const raw = process.env.FIXTURES
       ? JSON.parse(fs.readFileSync(path.join(process.env.FIXTURES, `${src.id}.json`), "utf8")) // локальний прогін
       : await src.fetchItems(log);
-    items = finalize(raw);
+    items = finalize(raw, src.perCat);
     if (!items.length) throw new Error("0 товарів");
   } catch (e) {
     log(`ПОМИЛКА: ${e.message}`);
@@ -142,17 +160,17 @@ for (const src of SOURCES) {
       updated = prev.updated;
       stale = true;
     } else {
-      storesMeta.push({ id: src.id, name: src.name, count: 0, avg: 0, max: 0, ok: false, updated: null });
-      continue;
+      storesMeta.push({ ...meta, count: 0, avg: 0, max: 0, ok: false, updated: null });
+      return;
     }
   }
 
   // мініатюри
   await pool(items, 12, async it => {
-    if (it.img) it.i = await thumb(src.id, it.img);
+    if (it.img) it.i = await thumbIn(src.id, imgDir, it.img);
     else if (it._i) {
       // для застарілих даних — копія з кешу, якщо є
-      const cached = path.join(IMG_CACHE, src.id, path.basename(it._i));
+      const cached = path.join(IMG_CACHE, imgDir, path.basename(it._i));
       if (fs.existsSync(cached)) {
         const dst = path.join(OUT, it._i);
         fs.mkdirSync(path.dirname(dst), { recursive: true });
@@ -169,14 +187,84 @@ for (const src of SOURCES) {
     if (it.l) o.l = it.l;
     return o;
   });
-  for (const it of clean) catCount[it.c]++;
+  if (!src.city) for (const it of clean) catCount[it.c]++;
   const avg = clean.length ? Math.round(clean.reduce((s, i) => s + i.d, 0) / clean.length) : 0;
   const max = clean.reduce((m, i) => Math.max(m, i.d), 0);
   fs.writeFileSync(path.join(OUT, "store", `${src.id}.json`),
     JSON.stringify({ id: src.id, name: src.name, updated, items: clean }));
-  storesMeta.push({ id: src.id, name: src.name, count: clean.length, avg, max, ok: !stale, updated });
+  storesMeta.push({ ...meta, count: clean.length, avg, max, ok: !stale, updated });
   const imgs = clean.filter(i => i.i).length;
   log(`готово: ${clean.length} товарів, ${imgs} фото, ${((Date.now() - t0) / 1000).toFixed(0)} с${stale ? " (застарілі)" : ""}`);
+}
+
+// 1. загальнонаціональні мережі
+for (const src of SOURCES) await processStore(src);
+
+// 2. міські магазини Zakaz.ua (Novus, ЕКО маркет, Metro)
+if (!process.env.FIXTURES && !process.env.NO_CITIES) {
+  let idx = {};
+  try { idx = await zakaz.storeIndex(); }
+  catch (e) { console.log(`[zakaz] список магазинів недоступний: ${e.message}`); }
+  for (const city of CITIES) {
+    if (!city.zakaz) continue;
+    for (const ch of ZAKAZ_CHAINS) {
+      const storeId = idx[`${ch.chain}:${city.zakaz}`];
+      if (!storeId) continue;
+      await processStore({
+        id: `${ch.chain}-${city.id}`, name: ch.name, city: city.id, imgDir: ch.chain, perCat: PER_CATEGORY_CITY,
+        fetchItems: log => zakaz.fetchStoreItems(storeId, log),
+      });
+    }
+  }
+}
+
+// 3. газетки по містах
+async function leafletPage(src) {
+  const name = `${hashOf(src)}.jpg`;
+  const cached = path.join(LF_CACHE, name);
+  if (!fs.existsSync(cached)) {
+    if ((imgFails.lf || 0) >= IMG_FAIL_LIMIT) return null;
+    try {
+      const r = await fetchRaw(src, { timeout: 20000, tries: 2, headers: { Accept: "image/*" } });
+      const buf = Buffer.from(await r.arrayBuffer());
+      const jpg = await sharp(buf).resize({ width: LF_WIDTH, withoutEnlargement: true })
+        .flatten({ background: "#ffffff" }).jpeg({ quality: 68, progressive: false }).toBuffer();
+      fs.mkdirSync(LF_CACHE, { recursive: true });
+      fs.writeFileSync(cached, jpg);
+      imgFails.lf = 0;
+    } catch (e) {
+      imgFails.lf = (imgFails.lf || 0) + 1;
+      if (imgFails.lf === 1) console.log(`[газетки] сторінка: ${e.message}`);
+      return null;
+    }
+  }
+  const meta = await sharp(cached).metadata();
+  const dst = path.join(OUT, "lf", name);
+  if (!fs.existsSync(dst)) { fs.mkdirSync(path.dirname(dst), { recursive: true }); fs.copyFileSync(cached, dst); }
+  return { i: `lf/${name}`, w: meta.width, h: meta.height };
+}
+
+const leafletCount = {};
+if (!process.env.FIXTURES && !process.env.NO_CITIES) {
+  const log = m => console.log(`[газетки] ${m}`);
+  let forta = null;
+  try { forta = await fetchForta(log); } catch (e) { log(`Форта: ${e.message}`); }
+  const FORTA_CITIES = ["lutsk", "lviv"];
+  for (const city of CITIES) {
+    let list = [];
+    try { list = await fetchLeaflets(city, LEAFLET_CHAINS, log, today); } catch (e) { log(`${city.id}: ${e.message}`); }
+    if (forta && FORTA_CITIES.includes(city.id)) list.unshift(forta);
+    const out = [];
+    for (const lf of list) {
+      const pages = (await pool(lf.src, 6, leafletPage)).filter(Boolean);
+      if (!pages.length) continue;
+      out.push({ chain: lf.chain, name: lf.name, title: lf.title, from: lf.from, to: lf.to, pages });
+    }
+    leafletCount[city.id] = out.length;
+    if (out.length) log(`${city.name}: ${out.map(l => `${l.name} (${l.pages.length} стор.)`).join(", ")}`);
+    fs.writeFileSync(path.join(OUT, "leaflets", `${city.id}.json`),
+      JSON.stringify({ city: city.id, updated: now.toISOString(), leaflets: out }));
+  }
 }
 
 await closeBrowser();
@@ -184,6 +272,7 @@ await closeBrowser();
 fs.writeFileSync(path.join(OUT, "index.json"), JSON.stringify({
   updated: now.toISOString(),
   stores: storesMeta,
+  cities: CITIES.map(c => ({ id: c.id, name: c.name, leaflets: leafletCount[c.id] || 0 })),
   cats: CATEGORIES.map(c => ({ id: c.id, name: c.name, count: catCount[c.id] })),
 }));
 fs.writeFileSync(path.join(OUT, ".nojekyll"), "");

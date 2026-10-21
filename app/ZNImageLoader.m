@@ -24,7 +24,7 @@
 - (id)init {
     if ((self = [super init])) {
         _mem = [[NSCache alloc] init];
-        _mem.countLimit = 300;
+        _mem.totalCostLimit = 24 * 1024 * 1024; // байти розпакованих картинок (сторінки газеток важкі)
         _waiters = [[NSMutableDictionary alloc] init];
         _queue = [[NSMutableArray alloc] init];
         _dir = [[[NSSearchPathForDirectoriesInDomains(NSCachesDirectory, NSUserDomainMask, YES) objectAtIndex:0]
@@ -95,7 +95,7 @@ static dispatch_queue_t ZNDecodeQueue(void) {
 }
 
 - (void)deliver:(UIImage *)img forURL:(NSURL *)url {
-    if (img) [_mem setObject:img forKey:url];
+    if (img) [_mem setObject:img forKey:url cost:(NSUInteger)(img.size.width * img.size.height * 4)];
     NSArray *blocks = [[[_waiters objectForKey:url] retain] autorelease];
     [_waiters removeObjectForKey:url];
     if (img) for (void (^b)(UIImage *) in blocks) b(img);
