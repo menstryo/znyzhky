@@ -8,6 +8,7 @@ import crypto from "crypto";
 import sharp from "sharp";
 import { CATEGORIES } from "./categories.mjs";
 import { fetchRaw, fetchJSON, pool, todayISO } from "./lib.mjs";
+import { browserFetchBuffer, browserStarted, closeBrowser } from "./browser.mjs";
 import * as silpo from "./sources/silpo.mjs";
 import * as atb from "./sources/atb.mjs";
 import * as varus from "./sources/varus.mjs";
@@ -66,6 +67,8 @@ const hashOf = s => crypto.createHash("sha1").update(s).digest("hex").slice(0, 1
 // Запобіжник: якщо CDN магазину не віддає картинки (блок, таймаути) — після N невдач поспіль
 // перестаємо пробувати до наступного запуску, щоб збірка не висіла годинами.
 const IMG_FAIL_LIMIT = 25;
+// деякі CDN віддають картинки лише з Referer свого сайту
+const REFERER = { silpo: "https://silpo.ua/", atb: "https://www.atbmarket.com/", varus: "https://varus.ua/", avrora: "https://avrora.ua/" };
 const imgFails = {};
 const imgErrLogged = {};
 const NO_IMAGES = !!process.env.NO_IMAGES;
@@ -76,8 +79,16 @@ async function thumb(storeId, src) {
   if (!fs.existsSync(cached)) {
     if (NO_IMAGES || (imgFails[storeId] || 0) >= IMG_FAIL_LIMIT) return null;
     try {
-      const r = await fetchRaw(src, { timeout: 10000, tries: 1, headers: { Accept: "image/jpeg,image/png,image/webp,*/*" } });
-      const buf = Buffer.from(await r.arrayBuffer());
+      let buf;
+      try {
+        const r = await fetchRaw(src, { timeout: 10000, tries: 1,
+          headers: { Accept: "image/jpeg,image/png,image/webp,*/*", Referer: REFERER[storeId] || "" } });
+        buf = Buffer.from(await r.arrayBuffer());
+      } catch (e) {
+        // якщо браузер уже запущено (магазин за Cloudflare) — пробуємо через нього
+        if (!browserStarted() || !/HTTP 403/.test(e.message)) throw e;
+        buf = await browserFetchBuffer(src, REFERER[storeId]);
+      }
       const jpg = await sharp(buf)
         .resize(THUMB, THUMB, { fit: "contain", background: "#ffffff" })
         .flatten({ background: "#ffffff" })
@@ -167,6 +178,8 @@ for (const src of SOURCES) {
   const imgs = clean.filter(i => i.i).length;
   log(`готово: ${clean.length} товарів, ${imgs} фото, ${((Date.now() - t0) / 1000).toFixed(0)} с${stale ? " (застарілі)" : ""}`);
 }
+
+await closeBrowser();
 
 fs.writeFileSync(path.join(OUT, "index.json"), JSON.stringify({
   updated: now.toISOString(),

@@ -1,5 +1,6 @@
 import { fetchText, splitBy, pick, stripTags, num, round2, dayMonthToISO, decode, sleep } from "../lib.mjs";
 import { classify } from "../categories.mjs";
+import { browserHTML } from "../browser.mjs";
 
 export const id = "atb";
 export const name = "АТБ";
@@ -43,12 +44,26 @@ export function parsePage(html, now = new Date()) {
 export async function fetchItems(log) {
   const all = new Map();
   let fails = 0;
+  // Cloudflare часто віддає 403 серверам GitHub — тоді переходимо на справжній Chrome
+  let viaBrowser = false;
+  const load = async url => {
+    if (!viaBrowser) {
+      try {
+        return await fetchText(url, { headers: { Referer: BASE + "/" }, tries: 2 });
+      } catch (e) {
+        if (!/HTTP 403|HTTP 503|Cloudflare/.test(e.message)) throw e;
+        log(`${e.message} — перемикаюсь на браузер`);
+        viaBrowser = true;
+      }
+    }
+    return browserHTML(url, "article.catalog-item");
+  };
   for (const promo of PROMOS) {
     let added = 0;
     for (let p = 1; p <= 80; p++) {
       let html;
       try {
-        html = await fetchText(`${BASE}/promo/${promo}${p > 1 ? "?page=" + p : ""}`, { headers: { Referer: BASE + "/" } });
+        html = await load(`${BASE}/promo/${promo}${p > 1 ? "?page=" + p : ""}`);
       } catch (e) {
         log(`${promo} p${p}: ${e.message}`);
         fails++;
@@ -60,9 +75,9 @@ export async function fetchItems(log) {
       if (!fresh.length) break;
       for (const i of fresh) all.set(i.id, i);
       added += fresh.length;
-      await sleep(400);
+      await sleep(viaBrowser ? 800 : 400);
     }
-    log(`${promo}: +${added}`);
+    log(`${promo}: +${added}${viaBrowser ? " (через браузер)" : ""}`);
   }
   if (!all.size && fails) throw new Error("усі запити до АТБ не вдалися");
   return [...all.values()].map(i => {
