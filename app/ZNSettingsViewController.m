@@ -1,5 +1,6 @@
 #import "ZNSettingsViewController.h"
 #import "ZNStore.h"
+#import "ZNTheme.h"
 
 enum { ZNSecStores = 0, ZNSecFilter, ZNSecData, ZNSecAbout, ZNSecCount };
 
@@ -19,6 +20,7 @@ enum { ZNSecStores = 0, ZNSecFilter, ZNSecData, ZNSecAbout, ZNSecCount };
 
 - (void)viewDidLoad {
     [super viewDidLoad];
+    [ZNTheme styleGroupedTable:self.tableView];
     NSNotificationCenter *nc = [NSNotificationCenter defaultCenter];
     [nc addObserver:self selector:@selector(reloadTable) name:ZNStoreDidUpdateNotification object:nil];
     [nc addObserver:self selector:@selector(reloadTable) name:ZNStoreLoadingNotification object:nil];
@@ -34,6 +36,19 @@ enum { ZNSecStores = 0, ZNSecFilter, ZNSecData, ZNSecAbout, ZNSecCount };
 - (NSArray *)stores { return [ZNStore shared].stores; }
 
 - (NSInteger)numberOfSectionsInTableView:(UITableView *)tv { return ZNSecCount; }
+
+- (UIView *)tableView:(UITableView *)tv viewForHeaderInSection:(NSInteger)s {
+    return [ZNTheme sectionHeaderWithTitle:[self tableView:tv titleForHeaderInSection:s] width:tv.bounds.size.width];
+}
+- (CGFloat)tableView:(UITableView *)tv heightForHeaderInSection:(NSInteger)s { return 40; }
+- (UIView *)tableView:(UITableView *)tv viewForFooterInSection:(NSInteger)s {
+    NSString *t = [self tableView:tv titleForFooterInSection:s];
+    return t ? [ZNTheme sectionFooterWithText:t width:tv.bounds.size.width] : nil;
+}
+- (CGFloat)tableView:(UITableView *)tv heightForFooterInSection:(NSInteger)s {
+    NSString *t = [self tableView:tv titleForFooterInSection:s];
+    return t ? [ZNTheme heightForFooterText:t width:tv.bounds.size.width] : 10;
+}
 
 - (NSString *)tableView:(UITableView *)tv titleForHeaderInSection:(NSInteger)s {
     switch (s) {
@@ -69,6 +84,7 @@ enum { ZNSecStores = 0, ZNSecFilter, ZNSecData, ZNSecAbout, ZNSecCount };
 
 - (UITableViewCell *)tableView:(UITableView *)tv cellForRowAtIndexPath:(NSIndexPath *)ip {
     UITableViewCell *c = [[[UITableViewCell alloc] initWithStyle:UITableViewCellStyleValue1 reuseIdentifier:nil] autorelease];
+    c.detailTextLabel.textColor = ZN_ACCENT;
     ZNStore *st = [ZNStore shared];
     switch (ip.section) {
         case ZNSecStores: {
@@ -103,7 +119,7 @@ enum { ZNSecStores = 0, ZNSecFilter, ZNSecData, ZNSecAbout, ZNSecCount };
             } else if (ip.row == 1) {
                 c.textLabel.text = st.loading ? @"Оновлення…" : @"Оновити зараз";
                 c.textLabel.textAlignment = NSTextAlignmentCenter;
-                c.textLabel.textColor = [UIColor colorWithRed:0.22 green:0.33 blue:0.53 alpha:1];
+                c.textLabel.textColor = ZN_ACCENT_DARK;
             } else {
                 c.textLabel.text = @"Сервер";
                 c.detailTextLabel.text = [[st.serverURL stringByReplacingOccurrencesOfString:@"https://" withString:@""]

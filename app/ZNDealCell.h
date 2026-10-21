@@ -1,6 +1,6 @@
 #import <UIKit/UIKit.h>
 
-#define ZN_ACCENT [UIColor colorWithRed:0.80 green:0.13 blue:0.11 alpha:1]
+#import "ZNTheme.h"
 
 // Підпис із перекресленням (на iOS 6 attributedText погано дружить із підсвіткою клітинки)
 @interface ZNStrikeLabel : UILabel

@@ -84,7 +84,7 @@ enum { ZNFavItems = 0, ZNFavWords };
     l.text = t;
     l.numberOfLines = 0;
     l.textAlignment = NSTextAlignmentCenter;
-    l.textColor = [UIColor grayColor];
+    l.textColor = ZN_TEXT_MUTED;
     l.font = [UIFont systemFontOfSize:14];
     l.backgroundColor = [UIColor clearColor];
     l.autoresizingMask = UIViewAutoresizingFlexibleWidth;
@@ -123,7 +123,7 @@ enum { ZNFavItems = 0, ZNFavWords };
         NSInteger n = [[_wordCounts objectAtIndex:ip.row] integerValue];
         c.textLabel.text = [[ZNStore shared].watchWords objectAtIndex:ip.row];
         c.detailTextLabel.text = n ? [NSString stringWithFormat:@"%ld в акції", (long)n] : @"немає";
-        c.detailTextLabel.textColor = n ? ZN_ACCENT : [UIColor grayColor];
+        c.detailTextLabel.textColor = n ? ZN_ACCENT_DARK : ZN_TEXT_MUTED;
         c.accessoryType = n ? UITableViewCellAccessoryDisclosureIndicator : UITableViewCellAccessoryNone;
         return c;
     }

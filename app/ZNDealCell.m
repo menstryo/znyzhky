@@ -61,14 +61,14 @@
 
         _price = [[UILabel alloc] initWithFrame:CGRectZero];
         _price.font = [UIFont boldSystemFontOfSize:17];
-        _price.textColor = ZN_ACCENT;
+        _price.textColor = ZN_ACCENT_DARK;
         _price.backgroundColor = [UIColor clearColor];
         _price.highlightedTextColor = [UIColor whiteColor];
         [cv addSubview:_price];
 
         _old = [[ZNStrikeLabel alloc] initWithFrame:CGRectZero];
         _old.font = [UIFont systemFontOfSize:13];
-        _old.textColor = [UIColor grayColor];
+        _old.textColor = ZN_TEXT_MUTED;
         _old.backgroundColor = [UIColor clearColor];
         _old.highlightedTextColor = [UIColor whiteColor];
         [cv addSubview:_old];
@@ -84,7 +84,7 @@
 
         _meta = [[UILabel alloc] initWithFrame:CGRectZero];
         _meta.font = [UIFont systemFontOfSize:12];
-        _meta.textColor = [UIColor grayColor];
+        _meta.textColor = ZN_TEXT_MUTED;
         _meta.backgroundColor = [UIColor clearColor];
         _meta.highlightedTextColor = [UIColor whiteColor];
         [cv addSubview:_meta];

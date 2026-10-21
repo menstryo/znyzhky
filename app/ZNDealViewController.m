@@ -27,6 +27,7 @@
 
 - (void)viewDidLoad {
     [super viewDidLoad];
+    [ZNTheme styleGroupedTable:self.tableView];
     ZNStore *st = [ZNStore shared];
 
     NSMutableArray *info = [NSMutableArray array];
@@ -91,12 +92,12 @@
     UILabel *price = [[[UILabel alloc] init] autorelease];
     price.text = ZNPrice([_item objectForKey:@"p"]);
     price.font = [UIFont boldSystemFontOfSize:26];
-    price.textColor = ZN_ACCENT;
+    price.textColor = ZN_ACCENT_DARK;
     price.backgroundColor = [UIColor clearColor];
     ZNStrikeLabel *old = [[[ZNStrikeLabel alloc] init] autorelease];
     old.text = ZNPrice([_item objectForKey:@"o"]);
     old.font = [UIFont systemFontOfSize:16];
-    old.textColor = [UIColor grayColor];
+    old.textColor = ZN_TEXT_MUTED;
     old.backgroundColor = [UIColor clearColor];
     UILabel *badge = [[[UILabel alloc] init] autorelease];
     badge.text = [NSString stringWithFormat:@"−%@%%", [_item objectForKey:@"d"]];
@@ -141,12 +142,13 @@ enum { ZNSecInfo = 0, ZNSecActions };
         c.textLabel.text = [row objectAtIndex:0];
         c.detailTextLabel.text = [row objectAtIndex:1];
         c.detailTextLabel.adjustsFontSizeToFitWidth = YES;
+        c.detailTextLabel.textColor = ZN_TEXT_MUTED;
         return c;
     }
     UITableViewCell *c = [tv dequeueReusableCellWithIdentifier:@"act"];
     if (!c) c = [[[UITableViewCell alloc] initWithStyle:UITableViewCellStyleDefault reuseIdentifier:@"act"] autorelease];
     c.textLabel.textAlignment = NSTextAlignmentCenter;
-    c.textLabel.textColor = [UIColor colorWithRed:0.22 green:0.33 blue:0.53 alpha:1];
+    c.textLabel.textColor = ZN_ACCENT_DARK;
     if (ip.row == 0) {
         BOOL fav = [[ZNStore shared] isFavorite:_item];
         c.textLabel.text = fav ? @"★ Прибрати з обраного" : @"☆ Додати в обране";

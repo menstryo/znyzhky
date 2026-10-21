@@ -1,6 +1,7 @@
 #import <UIKit/UIKit.h>
 #import "ZNStore.h"
 #import "ZNDealCell.h"
+#import "ZNTheme.h"
 #import "ZNDealListViewController.h"
 #import "ZNGroupsViewController.h"
 #import "ZNFavoritesViewController.h"
@@ -16,12 +17,13 @@
 
 static UINavigationController *ZNNav(UIViewController *root, NSString *title, NSString *icon) {
     UINavigationController *n = [[[UINavigationController alloc] initWithRootViewController:root] autorelease];
-    n.navigationBar.tintColor = ZN_ACCENT;
     n.tabBarItem = [[[UITabBarItem alloc] initWithTitle:title image:[UIImage imageNamed:icon] tag:0] autorelease];
     return n;
 }
 
 - (BOOL)application:(UIApplication *)app didFinishLaunchingWithOptions:(NSDictionary *)opts {
+    [ZNTheme apply];
+    if ([ZNTheme isFlat]) [app setStatusBarStyle:1 /* UIStatusBarStyleLightContent */];
     self.window = [[[UIWindow alloc] initWithFrame:[UIScreen mainScreen].bounds] autorelease];
     if ([self.window respondsToSelector:@selector(setTintColor:)]) self.window.tintColor = ZN_ACCENT; // iOS 7+
 

@@ -41,7 +41,7 @@ enum { ZNSortDiscount = 0, ZNSortPrice, ZNSortEnding };
 
     UIView *header = [[[UIView alloc] initWithFrame:CGRectMake(0, 0, self.view.bounds.size.width, 44 + 40)] autorelease];
     header.autoresizingMask = UIViewAutoresizingFlexibleWidth;
-    header.backgroundColor = [UIColor colorWithWhite:0.94 alpha:1];
+    header.backgroundColor = ZN_BG_HEADER;
 
     _search = [[UISearchBar alloc] initWithFrame:CGRectMake(0, 0, header.bounds.size.width, 44)];
     _search.autoresizingMask = UIViewAutoresizingFlexibleWidth;
@@ -64,7 +64,7 @@ enum { ZNSortDiscount = 0, ZNSortPrice, ZNSortEnding };
     _footer = [[UILabel alloc] initWithFrame:CGRectMake(0, 0, self.view.bounds.size.width, 60)];
     _footer.autoresizingMask = UIViewAutoresizingFlexibleWidth;
     _footer.textAlignment = NSTextAlignmentCenter;
-    _footer.textColor = [UIColor grayColor];
+    _footer.textColor = ZN_TEXT_MUTED;
     _footer.font = [UIFont systemFontOfSize:14];
     _footer.numberOfLines = 2;
     _footer.backgroundColor = [UIColor clearColor];

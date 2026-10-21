@@ -92,7 +92,7 @@
     c.textLabel.text = [r objectForKey:@"name"];
     c.textLabel.textColor = off ? [UIColor grayColor] : [UIColor blackColor];
     c.detailTextLabel.text = [r objectForKey:@"sub"];
-    c.detailTextLabel.textColor = [UIColor grayColor];
+    c.detailTextLabel.textColor = ZN_TEXT_MUTED;
     c.accessoryType = off ? UITableViewCellAccessoryNone : UITableViewCellAccessoryDisclosureIndicator;
     c.selectionStyle = off ? UITableViewCellSelectionStyleNone : UITableViewCellSelectionStyleBlue;
     return c;
