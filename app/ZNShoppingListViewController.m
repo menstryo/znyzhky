@@ -6,8 +6,33 @@
 #import <QuartzCore/QuartzCore.h>
 
 #define ZN_PAPER [UIColor colorWithRed:1.0 green:0.99 blue:0.95 alpha:1]
+#define ZN_ROW   [UIColor colorWithRed:1.0 green:0.95 blue:0.85 alpha:1]   // рядки з товарами — тепліший відтінок
 #define ZN_RULE  [UIColor colorWithRed:0.80 green:0.87 blue:0.92 alpha:1]
 #define ZN_MARGIN_LINE [UIColor colorWithRed:0.93 green:0.65 blue:0.60 alpha:1]
+
+#pragma mark - зошитовий аркуш
+
+// Порожня частина сторінки — «зошит»: блакитні лінії через 52 pt і червона лінія поля.
+@interface ZNPaperView : UIView
+@end
+@implementation ZNPaperView
+- (id)initWithFrame:(CGRect)f {
+    if ((self = [super initWithFrame:f])) { self.backgroundColor = ZN_PAPER; self.contentMode = UIViewContentModeRedraw; }
+    return self;
+}
+- (void)drawRect:(CGRect)r {
+    CGContextRef ctx = UIGraphicsGetCurrentContext();
+    CGContextSetLineWidth(ctx, 1);
+    CGContextSetStrokeColorWithColor(ctx, ZN_RULE.CGColor);
+    for (CGFloat y = 51.5f; y < self.bounds.size.height; y += 52) {
+        CGContextMoveToPoint(ctx, 0, y); CGContextAddLineToPoint(ctx, self.bounds.size.width, y);
+    }
+    CGContextStrokePath(ctx);
+    CGContextSetStrokeColorWithColor(ctx, ZN_MARGIN_LINE.CGColor);
+    CGContextMoveToPoint(ctx, 44.5f, 0); CGContextAddLineToPoint(ctx, 44.5f, self.bounds.size.height);
+    CGContextStrokePath(ctx);
+}
+@end
 
 #pragma mark - checkbox
 
@@ -54,8 +79,8 @@
 @implementation ZNListCell
 - (id)initWithStyle:(UITableViewCellStyle)s reuseIdentifier:(NSString *)rid {
     if ((self = [super initWithStyle:UITableViewCellStyleDefault reuseIdentifier:rid])) {
-        self.backgroundColor = ZN_PAPER;
-        self.contentView.backgroundColor = ZN_PAPER;
+        self.backgroundColor = ZN_ROW;
+        self.contentView.backgroundColor = ZN_ROW;
         UIView *sel = [[[UIView alloc] init] autorelease];
         sel.backgroundColor = [UIColor colorWithRed:0.98 green:0.92 blue:0.88 alpha:1];
         self.selectedBackgroundView = sel;
@@ -137,7 +162,8 @@
     _table.rowHeight = 52;
     _table.dataSource = self;
     _table.delegate = self;
-    _table.tableFooterView = [[[UIView alloc] init] autorelease];
+    // аркуш під списком — сторінка «намальована» до низу, навіть коли товарів мало
+    _table.tableFooterView = [[[ZNPaperView alloc] initWithFrame:CGRectMake(0, 0, v.bounds.size.width, 900)] autorelease];
     [v addSubview:_table];
 
     _bar = [[UIView alloc] initWithFrame:CGRectMake(0, v.bounds.size.height - barH, v.bounds.size.width, barH)];
@@ -159,15 +185,15 @@
     [_bar addSubview:_saved];
     [v addSubview:_bar];
 
-    _empty = [[UILabel alloc] initWithFrame:CGRectMake(30, 80, v.bounds.size.width - 60, 120)];
+    _empty = [[UILabel alloc] initWithFrame:CGRectMake(56, 60, v.bounds.size.width - 76, 160)];
     _empty.autoresizingMask = UIViewAutoresizingFlexibleWidth;
     _empty.numberOfLines = 0;
-    _empty.textAlignment = NSTextAlignmentCenter;
+    _empty.textAlignment = NSTextAlignmentLeft;
     _empty.textColor = ZN_TEXT_MUTED;
     _empty.font = [UIFont systemFontOfSize:15];
     _empty.backgroundColor = [UIColor clearColor];
     _empty.text = @"Список порожній.\n\nНатисніть «+ У список» на картці акції — товар з'явиться тут, згрупований за магазинами.";
-    [v addSubview:_empty];
+    [_table addSubview:_empty];
 }
 
 - (void)viewDidLoad {
@@ -222,6 +248,10 @@
     BOOL empty = entries.count == 0;
     _empty.hidden = !empty;
     _bar.hidden = empty;
+    // без смуги «Разом» аркуш тягнеться до самого низу
+    CGRect f = _table.frame;
+    f.size.height = self.view.bounds.size.height - (empty ? 0 : _bar.bounds.size.height);
+    _table.frame = f;
     self.navigationItem.rightBarButtonItem.enabled = !empty;
     _total.text = [NSString stringWithFormat:@"Разом: %@   ·   залишилось %lu з %lu", ZNPrice(@(total)),
                    (unsigned long)open, (unsigned long)entries.count];

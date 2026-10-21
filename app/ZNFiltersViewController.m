@@ -93,13 +93,20 @@ static const NSInteger kDiscounts[] = { 0, 20, 30, 40, 50 };
     }
 }
 
-- (UISegmentedControl *)segment:(NSArray *)titles selected:(NSInteger)sel action:(SEL)a width:(CGFloat)w {
+// Рядок із сегментами: без рамки групової таблиці, сегменти на всю ширину рядка.
+- (void)putSegment:(NSArray *)titles selected:(NSInteger)sel action:(SEL)a into:(UITableViewCell *)c {
+    c.selectionStyle = UITableViewCellSelectionStyleNone;
+    c.backgroundView = [[[UIView alloc] init] autorelease];
+    c.backgroundColor = [UIColor clearColor];
     UISegmentedControl *sc = [[[UISegmentedControl alloc] initWithItems:titles] autorelease];
     if (![ZNTheme isFlat]) sc.segmentedControlStyle = UISegmentedControlStyleBar;
-    sc.frame = CGRectMake(0, 0, w, 32);
+    CGFloat inset = [ZNTheme isFlat] ? 15 : 0;
+    CGFloat w = c.contentView.bounds.size.width;
+    sc.frame = CGRectMake(inset, 4, w - inset * 2, 36);
+    sc.autoresizingMask = UIViewAutoresizingFlexibleWidth;
     sc.selectedSegmentIndex = sel;
     [sc addTarget:self action:a forControlEvents:UIControlEventValueChanged];
-    return sc;
+    [c.contentView addSubview:sc];
 }
 
 - (UITableViewCell *)tableView:(UITableView *)tv cellForRowAtIndexPath:(NSIndexPath *)ip {
@@ -119,13 +126,7 @@ static const NSInteger kDiscounts[] = { 0, 20, 30, 40, 50 };
             break;
         }
         case ZNFGroup: {
-            c.selectionStyle = UITableViewCellSelectionStyleNone;
-            CGFloat w = tv.bounds.size.width - ([ZNTheme isFlat] ? 30 : 40);
-            UISegmentedControl *sc = [self segment:@[@"Продукти", @"Для дому", @"Усе"] selected:st.filterGroup
-                                            action:@selector(groupChanged:) width:w];
-            sc.frame = CGRectMake(([ZNTheme isFlat] ? 15 : 10), 6, w - ([ZNTheme isFlat] ? 0 : 0), 32);
-            sc.autoresizingMask = UIViewAutoresizingFlexibleWidth;
-            [c.contentView addSubview:sc];
+            [self putSegment:@[@"Продукти", @"Для дому", @"Усе"] selected:st.filterGroup action:@selector(groupChanged:) into:c];
             break;
         }
         case ZNFCats: {
@@ -141,33 +142,41 @@ static const NSInteger kDiscounts[] = { 0, 20, 30, 40, 50 };
             break;
         }
         case ZNFDiscount: {
-            c.selectionStyle = UITableViewCellSelectionStyleNone;
             NSInteger cur = 0;
             for (int i = 0; i < 5; i++) if (kDiscounts[i] == st.minDiscount) cur = i;
-            CGFloat w = tv.bounds.size.width - ([ZNTheme isFlat] ? 30 : 40);
-            UISegmentedControl *sc = [self segment:@[@"будь-яка", @"20%", @"30%", @"40%", @"50%"] selected:cur
-                                            action:@selector(discountChanged:) width:w];
-            sc.frame = CGRectMake(([ZNTheme isFlat] ? 15 : 10), 6, w, 32);
-            sc.autoresizingMask = UIViewAutoresizingFlexibleWidth;
-            [c.contentView addSubview:sc];
+            [self putSegment:@[@"Будь-яка", @"20%", @"30%", @"40%", @"50%"] selected:cur action:@selector(discountChanged:) into:c];
             break;
         }
         default: {
             c.textLabel.text = kSorts[ip.row];
             check = st.sortMode == ip.row;
-            if (ip.row == 0) c.detailTextLabel.text = @"знижка × економія";
         }
     }
     if (check) {
-        c.accessoryType = UITableViewCellAccessoryCheckmark;
+        UILabel *mark = [[[UILabel alloc] initWithFrame:CGRectMake(0, 0, 22, 22)] autorelease];
+        mark.text = @"✓";
+        mark.font = [UIFont boldSystemFontOfSize:20];
+        mark.textColor = ZN_ACCENT;
+        mark.backgroundColor = [UIColor clearColor];
+        mark.textAlignment = NSTextAlignmentCenter;
+        c.accessoryView = mark;
         c.textLabel.textColor = ZN_ACCENT_DARK;
     }
     if ([c respondsToSelector:@selector(setTintColor:)]) c.tintColor = ZN_ACCENT;
     return c;
 }
 
-- (CGFloat)tableView:(UITableView *)tv heightForRowAtIndexPath:(NSIndexPath *)ip {
-    return (ip.section == ZNFGroup || ip.section == ZNFDiscount) ? 44 : 44;
+- (NSString *)footerFor:(NSInteger)s {
+    if (s == ZNFSort) return @"«Вигідні» враховують і відсоток знижки, і скільки гривень реально економиш — копійчані дрібниці не лізуть наверх.";
+    return nil;
+}
+- (UIView *)tableView:(UITableView *)tv viewForFooterInSection:(NSInteger)s {
+    NSString *t = [self footerFor:s];
+    return t ? [ZNTheme sectionFooterWithText:t width:tv.bounds.size.width] : nil;
+}
+- (CGFloat)tableView:(UITableView *)tv heightForFooterInSection:(NSInteger)s {
+    NSString *t = [self footerFor:s];
+    return t ? [ZNTheme heightForFooterText:t width:tv.bounds.size.width] : 6;
 }
 
 - (void)groupChanged:(UISegmentedControl *)sc {

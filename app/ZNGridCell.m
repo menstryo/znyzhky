@@ -7,12 +7,55 @@
 
 #define ZN_PHOTO_H 104.0f
 
+// Усі «дорогі» ефекти (тіні, заокруглення з обрізкою) намальовані заздалегідь у розтяжні картинки:
+// layer.shadow і masksToBounds рендеряться поза екраном на кожному кадрі — на 4S це й гальмувало прокрутку.
+static UIImage *ZNStretchable(CGSize size, CGFloat radius, UIColor *fill, UIColor *shadow, CGFloat shadowY, CGFloat inset) {
+    CGFloat scale = [UIScreen mainScreen].scale;
+    UIGraphicsBeginImageContextWithOptions(size, NO, scale);
+    CGContextRef ctx = UIGraphicsGetCurrentContext();
+    CGRect r = CGRectInset(CGRectMake(0, 0, size.width, size.height - shadowY), inset, inset);
+    if (shadow) {
+        CGContextSaveGState(ctx);
+        CGContextSetShadowWithColor(ctx, CGSizeMake(0, shadowY), shadowY + 0.5f, shadow.CGColor);
+        [fill setFill];
+        [[UIBezierPath bezierPathWithRoundedRect:r cornerRadius:radius] fill];
+        CGContextRestoreGState(ctx);
+    }
+    [fill setFill];
+    [[UIBezierPath bezierPathWithRoundedRect:r cornerRadius:radius] fill];
+    UIImage *img = UIGraphicsGetImageFromCurrentImageContext();
+    UIGraphicsEndImageContext();
+    CGFloat c = ceilf(radius + inset + shadowY + 1);
+    return [img resizableImageWithCapInsets:UIEdgeInsetsMake(c, c, c, c)];
+}
+
+static UIImage *ZNCardImage(void) {
+    static UIImage *i = nil;
+    if (!i) i = [ZNStretchable(CGSizeMake(30, 32), 7, [UIColor whiteColor],
+                               [UIColor colorWithRed:0.25 green:0.12 blue:0.08 alpha:0.30], 1.5, 1) retain];
+    return i;
+}
+static UIImage *ZNCardPressedImage(void) {
+    static UIImage *i = nil;
+    if (!i) i = [ZNStretchable(CGSizeMake(30, 32), 7, [UIColor colorWithRed:0.98 green:0.93 blue:0.90 alpha:1],
+                               [UIColor colorWithRed:0.25 green:0.12 blue:0.08 alpha:0.30], 1.5, 1) retain];
+    return i;
+}
+// жовтий цінник з тінню й прозорою облямівкою 1 px — тоді при повороті краї не «рвуться»
+static UIImage *ZNTagImage(void) {
+    static UIImage *i = nil;
+    if (!i) i = [ZNStretchable(CGSizeMake(24, 26), 3, [UIColor colorWithRed:1.0 green:0.84 blue:0.24 alpha:1],
+                               [UIColor colorWithWhite:0 alpha:0.35], 1.5, 2) retain];
+    return i;
+}
+
 @interface ZNGridCell () {
-    UIView *_card;
+    UIImageView *_card;
     UIImageView *_photo;
     UILabel *_badge;
     UILabel *_store;
     UIView *_tag;
+    UIImageView *_tagBg;
     ZNStrikeLabel *_old;
     UILabel *_price;
     UILabel *_title;
@@ -33,85 +76,75 @@
     return CGSizeMake(w, ZN_PHOTO_H + 82);
 }
 
+static UILabel *ZNLabel(UIFont *f, UIColor *c) {
+    UILabel *l = [[UILabel alloc] init];
+    l.font = f;
+    l.textColor = c;
+    l.backgroundColor = [UIColor clearColor];
+    return l;
+}
+
 - (id)initWithFrame:(CGRect)frame {
     if ((self = [super initWithFrame:frame])) {
-        _card = [[UIView alloc] initWithFrame:self.contentView.bounds];
+        _card = [[UIImageView alloc] initWithFrame:CGRectInset(self.contentView.bounds, -1, -1)];
         _card.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
-        _card.backgroundColor = [UIColor whiteColor];
-        _card.layer.cornerRadius = 7;
-        _card.layer.shadowColor = [UIColor colorWithRed:0.25 green:0.12 blue:0.08 alpha:1].CGColor;
-        _card.layer.shadowOpacity = 0.22;
-        _card.layer.shadowOffset = CGSizeMake(0, 1);
-        _card.layer.shadowRadius = 1.5;
+        _card.image = ZNCardImage();
+        _card.highlightedImage = ZNCardPressedImage();
         [self.contentView addSubview:_card];
 
         _photo = [[UIImageView alloc] init];
         _photo.contentMode = UIViewContentModeScaleAspectFit;
         _photo.backgroundColor = [UIColor whiteColor];
-        _photo.clipsToBounds = YES;
-        [_card addSubview:_photo];
+        _photo.opaque = YES;
+        [self.contentView addSubview:_photo];
 
-        _badge = [[UILabel alloc] init];
-        _badge.font = [UIFont boldSystemFontOfSize:12];
-        _badge.textColor = [UIColor whiteColor];
-        _badge.backgroundColor = ZN_ACCENT;
+        // бейджі: фон через layer без обрізки (cornerRadius без masksToBounds — дешево)
+        _badge = ZNLabel([UIFont boldSystemFontOfSize:12], [UIColor whiteColor]);
         _badge.textAlignment = NSTextAlignmentCenter;
+        _badge.layer.backgroundColor = ZN_ACCENT.CGColor;
         _badge.layer.cornerRadius = 3;
-        _badge.clipsToBounds = YES;
-        [_card addSubview:_badge];
+        [self.contentView addSubview:_badge];
 
-        _store = [[UILabel alloc] init];
-        _store.font = [UIFont boldSystemFontOfSize:10];
-        _store.textColor = [UIColor whiteColor];
-        _store.backgroundColor = [UIColor colorWithRed:0.17 green:0.13 blue:0.11 alpha:0.72];
+        _store = ZNLabel([UIFont boldSystemFontOfSize:10], [UIColor whiteColor]);
         _store.textAlignment = NSTextAlignmentCenter;
+        _store.layer.backgroundColor = [UIColor colorWithRed:0.17 green:0.13 blue:0.11 alpha:0.72].CGColor;
         _store.layer.cornerRadius = 3;
-        _store.clipsToBounds = YES;
-        [_card addSubview:_store];
+        [self.contentView addSubview:_store];
 
-        // жовтий цінник, трохи нахилений — як наліпка в магазинній газетці
         _tag = [[UIView alloc] init];
-        _tag.backgroundColor = [UIColor colorWithRed:1.0 green:0.84 blue:0.24 alpha:1];
-        _tag.layer.cornerRadius = 3;
-        _tag.layer.shadowColor = [UIColor blackColor].CGColor;
-        _tag.layer.shadowOpacity = 0.28;
-        _tag.layer.shadowOffset = CGSizeMake(0, 1.5);
-        _tag.layer.shadowRadius = 1.5;
+        _tagBg = [[UIImageView alloc] initWithImage:ZNTagImage()];
+        _tagBg.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
+        [_tag addSubview:_tagBg];
         _old = [[ZNStrikeLabel alloc] init];
         _old.font = [UIFont systemFontOfSize:10];
         _old.textColor = [UIColor colorWithRed:0.40 green:0.33 blue:0.28 alpha:1];
         _old.backgroundColor = [UIColor clearColor];
         _old.textAlignment = NSTextAlignmentRight;
         [_tag addSubview:_old];
-        _price = [[UILabel alloc] init];
-        _price.font = [UIFont boldSystemFontOfSize:18];
-        _price.textColor = [UIColor colorWithRed:0.17 green:0.13 blue:0.11 alpha:1];
-        _price.backgroundColor = [UIColor clearColor];
+        _price = ZNLabel([UIFont boldSystemFontOfSize:18], [UIColor colorWithRed:0.17 green:0.13 blue:0.11 alpha:1]);
         _price.textAlignment = NSTextAlignmentRight;
         _price.adjustsFontSizeToFitWidth = YES;
         _price.minimumScaleFactor = 0.6;
         [_tag addSubview:_price];
-        [_card addSubview:_tag];
+        [self.contentView addSubview:_tag];
 
-        _title = [[UILabel alloc] init];
-        _title.font = [UIFont systemFontOfSize:12];
-        _title.textColor = [UIColor colorWithRed:0.17 green:0.13 blue:0.11 alpha:1];
+        _title = ZNLabel([UIFont systemFontOfSize:12], [UIColor colorWithRed:0.17 green:0.13 blue:0.11 alpha:1]);
         _title.numberOfLines = 2;
-        _title.backgroundColor = [UIColor clearColor];
-        [_card addSubview:_title];
+        [self.contentView addSubview:_title];
 
-        _meta = [[UILabel alloc] init];
-        _meta.font = [UIFont systemFontOfSize:10];
-        _meta.textColor = ZN_TEXT_MUTED;
-        _meta.backgroundColor = [UIColor clearColor];
-        [_card addSubview:_meta];
+        _meta = ZNLabel([UIFont systemFontOfSize:10], ZN_TEXT_MUTED);
+        [self.contentView addSubview:_meta];
 
         _add = [[UIButton buttonWithType:UIButtonTypeCustom] retain];
         _add.titleLabel.font = [UIFont boldSystemFontOfSize:11];
         _add.layer.cornerRadius = 4;
         _add.layer.borderWidth = 1;
         [_add addTarget:self action:@selector(addTapped) forControlEvents:UIControlEventTouchUpInside];
-        [_card addSubview:_add];
+        [self.contentView addSubview:_add];
+
+        // растеризуємо нахилений цінник один раз — поворот без антиаліасингу інакше дорогий і «зубчастий»
+        _tag.layer.shouldRasterize = YES;
+        _tag.layer.rasterizationScale = [UIScreen mainScreen].scale;
 
         [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(updateAddButton)
                                                      name:ZNStoreListChangedNotification object:nil];
@@ -121,20 +154,19 @@
 
 - (void)dealloc {
     [[NSNotificationCenter defaultCenter] removeObserver:self];
-    [_card release]; [_photo release]; [_badge release]; [_store release]; [_tag release]; [_old release];
-    [_price release]; [_title release]; [_meta release]; [_add release]; [_imageURL release]; [_item release];
+    [_card release]; [_photo release]; [_badge release]; [_store release]; [_tag release]; [_tagBg release];
+    [_old release]; [_price release]; [_title release]; [_meta release]; [_add release]; [_imageURL release]; [_item release];
     [super dealloc];
 }
 
 - (void)setHighlighted:(BOOL)h {
     [super setHighlighted:h];
-    _card.backgroundColor = h ? [UIColor colorWithRed:0.98 green:0.93 blue:0.90 alpha:1] : [UIColor whiteColor];
+    _card.highlighted = h;
 }
 
 - (void)addTapped {
     if (!_item) return;
     [[ZNStore shared] toggleInList:_item];
-    // маленька «пружинка», щоб було видно, що натискання спрацювало
     _add.transform = CGAffineTransformMakeScale(1.15, 1.15);
     [UIView animateWithDuration:0.2 animations:^{ _add.transform = CGAffineTransformIdentity; }];
 }
@@ -143,7 +175,7 @@
     BOOL in = _item && [[ZNStore shared] isInList:_item];
     [_add setTitle:(in ? @"✓ У списку" : @"+ У список") forState:UIControlStateNormal];
     [_add setTitleColor:(in ? [UIColor whiteColor] : ZN_ACCENT_DARK) forState:UIControlStateNormal];
-    _add.backgroundColor = in ? ZN_ACCENT : [UIColor colorWithRed:0.99 green:0.96 blue:0.93 alpha:1];
+    _add.layer.backgroundColor = (in ? ZN_ACCENT : [UIColor colorWithRed:0.99 green:0.96 blue:0.93 alpha:1]).CGColor;
     _add.layer.borderColor = (in ? ZN_ACCENT_DARK : [UIColor colorWithRed:0.86 green:0.80 blue:0.75 alpha:1]).CGColor;
 }
 
@@ -183,7 +215,7 @@
 
 - (void)layoutSubviews {
     [super layoutSubviews];
-    CGFloat w = _card.bounds.size.width;
+    CGFloat w = self.contentView.bounds.size.width;
     _photo.frame = CGRectMake(6, 6, w - 12, ZN_PHOTO_H - 12);
     CGSize bs = [_badge.text sizeWithFont:_badge.font];
     _badge.frame = CGRectMake(5, 5, bs.width + 8, 17);
@@ -192,11 +224,11 @@
 
     // цінник: праворуч унизу фото, заходить на текст
     CGSize ps = [_price.text sizeWithFont:_price.font];
-    CGFloat tw = MIN(w * 0.62f, MAX(56, ps.width + 12));
+    CGFloat tw = MIN(w * 0.62f, MAX(58, ps.width + 16));
     _tag.transform = CGAffineTransformIdentity;
-    _tag.frame = CGRectMake(w - tw - 4, ZN_PHOTO_H - 26, tw, 36);
-    _old.frame = CGRectMake(4, 2, tw - 8, 12);
-    _price.frame = CGRectMake(4, 13, tw - 8, 21);
+    _tag.frame = CGRectMake(w - tw - 3, ZN_PHOTO_H - 27, tw, 40);
+    _old.frame = CGRectMake(5, 4, tw - 11, 12);
+    _price.frame = CGRectMake(5, 15, tw - 11, 21);
     _tag.transform = CGAffineTransformMakeRotation(-0.06);
 
     CGSize ts = [_title.text sizeWithFont:_title.font constrainedToSize:CGSizeMake(w - 14, 30) lineBreakMode:NSLineBreakByTruncatingTail];
