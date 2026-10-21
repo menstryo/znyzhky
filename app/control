@@ -1,0 +1,9 @@
+Package: com.menstryo.znyzhky
+Name: Знижки
+Version: 1.0
+Architecture: iphoneos-arm
+Description: Акції Сільпо, АТБ, Varus та Аврори в одному місці
+Maintainer: menstryo
+Author: menstryo
+Section: Utilities
+Depends: firmware (>= 6.0)

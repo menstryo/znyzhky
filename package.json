@@ -1,0 +1,12 @@
+{
+  "name": "znyzhky",
+  "private": true,
+  "type": "module",
+  "description": "Знижки — збирач акцій Сільпо, АТБ, Varus, Аврора для iOS 6 застосунку",
+  "scripts": {
+    "build": "node scripts/build.mjs"
+  },
+  "dependencies": {
+    "sharp": "^0.33.5"
+  }
+}
