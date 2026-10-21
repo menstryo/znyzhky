@@ -15,7 +15,7 @@ import * as varus from "./sources/varus.mjs";
 import * as avrora from "./sources/avrora.mjs";
 import * as zakaz from "./sources/zakaz.mjs";
 import { CITIES, ZAKAZ_CHAINS, LEAFLET_CHAINS } from "./cities.mjs";
-import { fetchLeaflets, fetchForta } from "./leaflets.mjs";
+import { fetchLeaflets, fetchForta, gtsViaBrowser } from "./leaflets.mjs";
 
 const SOURCES = [silpo, atb, varus, avrora];
 
@@ -225,8 +225,9 @@ async function leafletPage(src) {
   if (!fs.existsSync(cached)) {
     if ((imgFails.lf || 0) >= IMG_FAIL_LIMIT) return null;
     try {
-      const r = await fetchRaw(src, { timeout: 20000, tries: 2, headers: { Accept: "image/*" } });
-      const buf = Buffer.from(await r.arrayBuffer());
+      let buf;
+      if (/gotoshop\.ua/.test(src) && gtsViaBrowser()) buf = await browserFetchBuffer(src, "https://gotoshop.ua/");
+      else buf = Buffer.from(await (await fetchRaw(src, { timeout: 20000, tries: 2, headers: { Accept: "image/*" } })).arrayBuffer());
       const jpg = await sharp(buf).resize({ width: LF_WIDTH, withoutEnlargement: true })
         .flatten({ background: "#ffffff" }).jpeg({ quality: 68, progressive: false }).toBuffer();
       fs.mkdirSync(LF_CACHE, { recursive: true });

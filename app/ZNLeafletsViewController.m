@@ -110,8 +110,9 @@ static NSString *ZNLeafletDates(NSDictionary *l) {
     NSDictionary *l = [[ZNStore shared].leaflets objectAtIndex:ip.row];
     NSArray *pages = [l objectForKey:@"pages"];
     c.textLabel.text = [l objectForKey:@"name"];
-    c.detailTextLabel.text = [NSString stringWithFormat:@"%@\n%@ · %lu стор.", [l objectForKey:@"title"] ?: @"",
-                              ZNLeafletDates(l), (unsigned long)pages.count];
+    BOOL cards = pages.count && [[[pages objectAtIndex:0] objectForKey:@"w"] floatValue] < 400;
+    c.detailTextLabel.text = [NSString stringWithFormat:@"%@\n%@ · %lu %@", [l objectForKey:@"title"] ?: @"",
+                              ZNLeafletDates(l), (unsigned long)pages.count, cards ? @"тов." : @"стор."];
     NSURL *u = pages.count ? [[ZNStore shared] urlForPath:[[pages objectAtIndex:0] objectForKey:@"i"]] : nil;
     cover.image = [[ZNImageLoader shared] cachedImageForURL:u];
     if (!cover.image && u) {
@@ -220,13 +221,34 @@ static NSString *ZNLeafletDates(NSDictionary *l) {
 
 - (NSArray *)pages { return [_leaflet objectForKey:@"pages"]; }
 
-- (NSInteger)tableView:(UITableView *)tv numberOfRowsInSection:(NSInteger)s { return self.pages.count; }
+// газетка з карток товарів (Форта: 300×300) — по 2 в ряд, звичайні сторінки — по одній
+- (NSInteger)cols {
+    NSArray *p = self.pages;
+    if (!p.count) return 1;
+    return [[[p objectAtIndex:0] objectForKey:@"w"] floatValue] < 400 ? 2 : 1;
+}
+
+- (NSInteger)tableView:(UITableView *)tv numberOfRowsInSection:(NSInteger)s {
+    NSInteger c = self.cols;
+    return (self.pages.count + c - 1) / c;
+}
 
 - (CGFloat)tableView:(UITableView *)tv heightForRowAtIndexPath:(NSIndexPath *)ip {
-    NSDictionary *p = [self.pages objectAtIndex:ip.row];
+    NSInteger cols = self.cols;
+    NSDictionary *p = [self.pages objectAtIndex:ip.row * cols];
     CGFloat w = [[p objectForKey:@"w"] floatValue], h = [[p objectForKey:@"h"] floatValue];
-    CGFloat width = tv.bounds.size.width - 12;
-    return (w > 0 ? floorf(width * h / w) : width * 1.4f) + 8;
+    CGFloat width = floorf((tv.bounds.size.width - 6 - 6 * cols) / cols);
+    return (w > 0 ? floorf(width * h / w) : width * 1.4f) + 6;
+}
+
+- (void)layoutCell:(UITableViewCell *)c {
+    NSInteger cols = self.cols;
+    CGRect b = c.contentView.bounds;
+    CGFloat width = floorf((b.size.width - 6 - 6 * cols) / cols);
+    for (NSInteger k = 0; k < 2; k++) {
+        UIView *iv = [c.contentView viewWithTag:10 + k];
+        iv.frame = CGRectMake(6 + k * (width + 6), 3, width, b.size.height - 6);
+    }
 }
 
 - (UITableViewCell *)tableView:(UITableView *)tv cellForRowAtIndexPath:(NSIndexPath *)ip {
@@ -234,35 +256,55 @@ static NSString *ZNLeafletDates(NSDictionary *l) {
     if (!c) {
         c = [[[UITableViewCell alloc] initWithStyle:UITableViewCellStyleDefault reuseIdentifier:@"pg"] autorelease];
         c.selectionStyle = UITableViewCellSelectionStyleNone;
-        UIImageView *iv = [[[UIImageView alloc] init] autorelease];
-        iv.tag = 5;
-        iv.backgroundColor = [UIColor whiteColor];
-        iv.contentMode = UIViewContentModeScaleAspectFit;
-        iv.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
-        [c.contentView addSubview:iv];
+        for (NSInteger k = 0; k < 2; k++) {
+            UIImageView *iv = [[[UIImageView alloc] init] autorelease];
+            iv.tag = 10 + k;
+            iv.backgroundColor = [UIColor whiteColor];
+            iv.contentMode = UIViewContentModeScaleAspectFit;
+            iv.userInteractionEnabled = YES;
+            [iv addGestureRecognizer:[[[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(tapPage:)] autorelease]];
+            [c.contentView addSubview:iv];
+        }
     }
-    UIImageView *iv = (UIImageView *)[c.contentView viewWithTag:5];
-    iv.frame = CGRectInset(c.contentView.bounds, 6, 4);
-    NSURL *u = [[ZNStore shared] urlForPath:[[self.pages objectAtIndex:ip.row] objectForKey:@"i"]];
-    iv.image = [[ZNImageLoader shared] cachedImageForURL:u];
-    if (!iv.image && u) {
-        [[ZNImageLoader shared] loadURL:u done:^(UIImage *img) {
-            UITableViewCell *now = [tv cellForRowAtIndexPath:ip];
-            if (now) [(UIImageView *)[now.contentView viewWithTag:5] setImage:img];
-        }];
+    NSInteger cols = self.cols;
+    NSArray *pages = self.pages;
+    for (NSInteger k = 0; k < 2; k++) {
+        UIImageView *iv = (UIImageView *)[c.contentView viewWithTag:10 + k];
+        NSInteger idx = ip.row * cols + k;
+        if (k >= cols || idx >= (NSInteger)pages.count) { iv.hidden = YES; iv.image = nil; continue; }
+        iv.hidden = NO;
+        NSURL *u = [[ZNStore shared] urlForPath:[[pages objectAtIndex:idx] objectForKey:@"i"]];
+        iv.accessibilityLabel = [NSString stringWithFormat:@"%ld", (long)idx];
+        iv.image = [[ZNImageLoader shared] cachedImageForURL:u];
+        if (!iv.image && u) {
+            [[ZNImageLoader shared] loadURL:u done:^(UIImage *img) {
+                UITableViewCell *now = [tv cellForRowAtIndexPath:ip];
+                if (now) [(UIImageView *)[now.contentView viewWithTag:10 + k] setImage:img];
+            }];
+        }
     }
+    [self layoutCell:c];
     return c;
 }
 
 - (void)tableView:(UITableView *)tv willDisplayCell:(UITableViewCell *)c forRowAtIndexPath:(NSIndexPath *)ip {
     c.backgroundColor = [UIColor colorWithWhite:0.92 alpha:1];
-    [c.contentView viewWithTag:5].frame = CGRectInset(c.contentView.bounds, 6, 4);
+    NSInteger cols = self.cols, last = (NSInteger)self.pages.count - 1;
+    for (NSInteger k = 0; k < 2; k++) {
+        UIView *iv = [c.contentView viewWithTag:10 + k];
+        CGRect b = c.contentView.bounds;
+        CGFloat width = floorf((b.size.width - 6 - 6 * cols) / cols);
+        iv.frame = CGRectMake(6 + k * (width + 6), 3, width, b.size.height - 6);
+        iv.hidden = k >= cols || ip.row * cols + k > last;
+    }
 }
 
-- (void)tableView:(UITableView *)tv didSelectRowAtIndexPath:(NSIndexPath *)ip {
-    NSURL *u = [[ZNStore shared] urlForPath:[[self.pages objectAtIndex:ip.row] objectForKey:@"i"]];
+- (void)tapPage:(UITapGestureRecognizer *)g {
+    NSInteger idx = [g.view.accessibilityLabel integerValue];
+    if (idx < 0 || idx >= (NSInteger)self.pages.count) return;
+    NSURL *u = [[ZNStore shared] urlForPath:[[self.pages objectAtIndex:idx] objectForKey:@"i"]];
     ZNPageZoomViewController *z = [[[ZNPageZoomViewController alloc] initWithURL:u] autorelease];
-    z.title = [NSString stringWithFormat:@"%ld з %lu", (long)ip.row + 1, (unsigned long)self.pages.count];
+    z.title = [NSString stringWithFormat:@"%ld з %lu", (long)idx + 1, (unsigned long)self.pages.count];
     [self.navigationController pushViewController:z animated:YES];
 }
 

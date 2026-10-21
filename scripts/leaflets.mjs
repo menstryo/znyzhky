@@ -1,13 +1,31 @@
 // «Газетки»: акційні каталоги регіональних мереж (Сім23, Форта, Салют, Фора) з GoToShop.
 // Це сторінки-картинки без назв товарів, тому вони йдуть окремим розділом, а не в сітку акцій.
 import { fetchText, sleep, decode } from "./lib.mjs";
+import { browserHTML } from "./browser.mjs";
+
+// GoToShop з GitHub віддає 403 (Cloudflare) — після першого 403 ходимо через Chrome.
+let viaBrowser = false;
+export const gtsViaBrowser = () => viaBrowser;
+async function gtsGet(url) {
+  if (!viaBrowser) {
+    try { return await fetchText(url); }
+    catch (e) {
+      if (!/HTTP 403/.test(e.message)) throw e;
+      viaBrowser = true;
+      console.log(`[газетки] GoToShop: HTTP 403 — перемикаюсь на браузер`);
+    }
+  }
+  const html = await browserHTML(url, null);
+  if (/<title>[^<]*(404|не знайдено|не найдено)/i.test(html)) throw new Error(`${url}: HTTP 404`);
+  return html;
+}
 
 const BASE = "https://gotoshop.ua";
 
 // Каталоги мережі в місті: [{ key, title, from, to, viewer }]
 async function catalogsFor(citySlug, chainSlug) {
   let html;
-  try { html = await fetchText(`${BASE}/${citySlug}/shops/${chainSlug}/`); }
+  try { html = await gtsGet(`${BASE}/${citySlug}/shops/${chainSlug}/`); }
   catch (e) { if (/HTTP 404/.test(e.message)) return []; throw e; }
   const out = [];
   const re = new RegExp(`href="(?:https://gotoshop\\.ua)?/${citySlug}/discounts/([a-z0-9-]+)/"[^>]*>\\s*<span>([^<]+)</span>`, "g");
@@ -26,10 +44,10 @@ async function catalogsFor(citySlug, chainSlug) {
 
 // Сторінки каталогу: з /discounts/<slug>/catalog/ беремо посилання «Відкрити каталог» → /catalogs/<id>/
 async function pagesFor(citySlug, discountSlug) {
-  const html = await fetchText(`${BASE}/${citySlug}/discounts/${discountSlug}/catalog/`);
+  const html = await gtsGet(`${BASE}/${citySlug}/discounts/${discountSlug}/catalog/`);
   const cm = new RegExp(`/${citySlug}/catalogs/([0-9a-z-]+)/`).exec(html);
   if (!cm) return null;
-  const viewer = await fetchText(`${BASE}/${citySlug}/catalogs/${cm[1]}/`);
+  const viewer = await gtsGet(`${BASE}/${citySlug}/catalogs/${cm[1]}/`);
   // повнорозмірні сторінки: storage/img/c/<рік>/<міс>/<папка>/<файл>.png (без підпапки розміру)
   const pages = [];
   const seen = new Set();
