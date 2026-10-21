@@ -6,7 +6,7 @@
 #import <QuartzCore/QuartzCore.h>
 
 #define ZN_PAPER [UIColor colorWithRed:1.0 green:0.99 blue:0.95 alpha:1]
-#define ZN_ROW   [UIColor colorWithRed:1.0 green:0.95 blue:0.85 alpha:1]   // рядки з товарами — тепліший відтінок
+#define ZN_ROW   ZN_PAPER   // один фон для всієї сторінки
 #define ZN_RULE  [UIColor colorWithRed:0.80 green:0.87 blue:0.92 alpha:1]
 #define ZN_MARGIN_LINE [UIColor colorWithRed:0.93 green:0.65 blue:0.60 alpha:1]
 
@@ -163,7 +163,7 @@
     _table.dataSource = self;
     _table.delegate = self;
     // аркуш під списком — сторінка «намальована» до низу, навіть коли товарів мало
-    _table.tableFooterView = [[[ZNPaperView alloc] initWithFrame:CGRectMake(0, 0, v.bounds.size.width, 900)] autorelease];
+    _table.tableFooterView = [[[ZNPaperView alloc] initWithFrame:CGRectMake(0, 0, v.bounds.size.width, 0)] autorelease];
     [v addSubview:_table];
 
     _bar = [[UIView alloc] initWithFrame:CGRectMake(0, v.bounds.size.height - barH, v.bounds.size.width, barH)];
@@ -252,6 +252,8 @@
     CGRect f = _table.frame;
     f.size.height = self.view.bounds.size.height - (empty ? 0 : _bar.bounds.size.height);
     _table.frame = f;
+    [_table layoutIfNeeded];
+    [self fitPaper];
     self.navigationItem.rightBarButtonItem.enabled = !empty;
     _total.text = [NSString stringWithFormat:@"Разом: %@   ·   залишилось %lu з %lu", ZNPrice(@(total)),
                    (unsigned long)open, (unsigned long)entries.count];
@@ -284,7 +286,11 @@
 
 - (UIView *)tableView:(UITableView *)tv viewForHeaderInSection:(NSInteger)s {
     UIView *v = [[[UIView alloc] initWithFrame:CGRectMake(0, 0, tv.bounds.size.width, 30)] autorelease];
-    v.backgroundColor = [UIColor colorWithRed:0.98 green:0.95 blue:0.89 alpha:0.97];
+    v.backgroundColor = ZN_PAPER;
+    UIView *rule = [[[UIView alloc] initWithFrame:CGRectMake(0, 29, tv.bounds.size.width, 1)] autorelease];
+    rule.backgroundColor = ZN_RULE;
+    rule.autoresizingMask = UIViewAutoresizingFlexibleWidth;
+    [v addSubview:rule];
     UILabel *l = [[[UILabel alloc] initWithFrame:CGRectMake(54, 6, tv.bounds.size.width - 64, 20)] autorelease];
     l.text = [[_sections objectAtIndex:s] objectForKey:@"title"];
     l.font = [UIFont boldSystemFontOfSize:15];
@@ -320,6 +326,25 @@
     c->meta.text = [meta componentsJoinedByString:@" · "];
     c.accessoryType = UITableViewCellAccessoryDisclosureIndicator;
     return c;
+}
+
+- (void)tableView:(UITableView *)tv willDisplayCell:(UITableViewCell *)c forRowAtIndexPath:(NSIndexPath *)ip {
+    c.backgroundColor = ZN_PAPER;
+}
+
+// Аркуш під рядками — рівно до низу екрана, щоб при кількох товарах не було прокрутки.
+- (void)fitPaper {
+    UIView *foot = _table.tableFooterView;
+    CGFloat content = _table.contentSize.height - foot.bounds.size.height;
+    CGFloat need = MAX(0, floorf(_table.bounds.size.height - content));
+    if (fabsf(foot.bounds.size.height - need) < 1) return;
+    CGRect f = foot.frame; f.size.height = need; foot.frame = f;
+    _table.tableFooterView = foot; // перепризначення змушує таблицю перерахувати contentSize
+}
+
+- (void)viewDidLayoutSubviews {
+    [super viewDidLayoutSubviews];
+    [self fitPaper];
 }
 
 - (void)checkTapped:(UIButton *)b event:(UIEvent *)ev {

@@ -116,12 +116,12 @@ static UILabel *ZNLabel(UIFont *f, UIColor *c) {
         _tagBg.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
         [_tag addSubview:_tagBg];
         _old = [[ZNStrikeLabel alloc] init];
-        _old.font = [UIFont systemFontOfSize:10];
+        _old.font = [UIFont systemFontOfSize:9];
         _old.textColor = [UIColor colorWithRed:0.40 green:0.33 blue:0.28 alpha:1];
         _old.backgroundColor = [UIColor clearColor];
         _old.textAlignment = NSTextAlignmentRight;
         [_tag addSubview:_old];
-        _price = ZNLabel([UIFont boldSystemFontOfSize:18], [UIColor colorWithRed:0.17 green:0.13 blue:0.11 alpha:1]);
+        _price = ZNLabel([UIFont boldSystemFontOfSize:15], [UIColor colorWithRed:0.17 green:0.13 blue:0.11 alpha:1]);
         _price.textAlignment = NSTextAlignmentRight;
         _price.adjustsFontSizeToFitWidth = YES;
         _price.minimumScaleFactor = 0.6;
@@ -224,12 +224,12 @@ static UILabel *ZNLabel(UIFont *f, UIColor *c) {
 
     // цінник: праворуч унизу фото, заходить на текст
     CGSize ps = [_price.text sizeWithFont:_price.font];
-    CGFloat tw = MIN(w * 0.62f, MAX(58, ps.width + 16));
+    CGFloat tw = MIN(w * 0.55f, MAX(46, ps.width + 14));
     _tag.transform = CGAffineTransformIdentity;
-    _tag.frame = CGRectMake(w - tw - 3, ZN_PHOTO_H - 27, tw, 40);
-    _old.frame = CGRectMake(5, 4, tw - 11, 12);
-    _price.frame = CGRectMake(5, 15, tw - 11, 21);
-    _tag.transform = CGAffineTransformMakeRotation(-0.06);
+    _tag.frame = CGRectMake(w - tw - 4, ZN_PHOTO_H - 22, tw, 33);
+    _old.frame = CGRectMake(4, 3, tw - 10, 10);
+    _price.frame = CGRectMake(4, 12, tw - 10, 17);
+    _tag.transform = CGAffineTransformMakeRotation(-0.05);
 
     CGSize ts = [_title.text sizeWithFont:_title.font constrainedToSize:CGSizeMake(w - 14, 30) lineBreakMode:NSLineBreakByTruncatingTail];
     _title.frame = CGRectMake(7, ZN_PHOTO_H + 12, w - 14, MAX(15, ts.height)); // текст притиснутий догори
