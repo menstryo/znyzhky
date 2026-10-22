@@ -10,11 +10,17 @@
 #define ZN_TABBAR      [UIColor colorWithRed:0.20 green:0.15 blue:0.14 alpha:1]   // теплий темно-коричневий
 #define ZN_TEXT_MUTED  [UIColor colorWithRed:0.52 green:0.45 blue:0.42 alpha:1]   // підписи, заголовки секцій
 
+typedef enum { ZNButtonAccent = 0, ZNButtonLight, ZNButtonGreen } ZNButtonKind;
+
 @interface ZNTheme : NSObject
 + (void)apply;                                        // UIAppearance для всього застосунку
 + (BOOL)isFlat;
 + (BOOL)handwriting;                                  // рукописний шрифт у списку (iOS 6 — так, iOS 7+ — ні, змінюється в «Ще»)
 + (void)setHandwriting:(BOOL)on;                                       // iOS 7+
+// Кнопки: iOS 6 — об'ємні (градієнт, рамка, відблиск, тінь), iOS 7+ — пласкі
++ (UIImage *)buttonImage:(ZNButtonKind)kind pressed:(BOOL)pressed radius:(CGFloat)radius;
++ (void)styleButton:(UIButton *)b kind:(ZNButtonKind)kind radius:(CGFloat)radius;
++ (UIFont *)noteFont:(CGFloat)size bold:(BOOL)bold;   // шрифт списку: Noteworthy або системний
 + (void)styleGroupedTable:(UITableView *)tv;          // кремовий фон замість смугастого
 + (UIView *)sectionHeaderWithTitle:(NSString *)title width:(CGFloat)w;
 + (UIView *)sectionFooterWithText:(NSString *)text width:(CGFloat)w;

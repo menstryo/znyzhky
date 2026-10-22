@@ -128,12 +128,12 @@ static NSString * const kSortTitles[] = { @"Вигідні", @"Найбільш�
     UIButton *b = [UIButton buttonWithType:UIButtonTypeCustom];
     b.titleLabel.font = primary ? [UIFont boldSystemFontOfSize:13] : [UIFont systemFontOfSize:13];
     [b setTitle:title forState:UIControlStateNormal];
-    [b setTitleColor:(primary ? [UIColor whiteColor] : [UIColor colorWithRed:0.17 green:0.13 blue:0.11 alpha:1]) forState:UIControlStateNormal];
-    [b setTitleColor:[UIColor colorWithWhite:0.5 alpha:1] forState:UIControlStateHighlighted];
-    b.backgroundColor = primary ? ZN_ACCENT : [UIColor whiteColor];
-    b.layer.cornerRadius = 6;
-    b.layer.borderWidth = primary ? 0 : 1;
-    b.layer.borderColor = [UIColor colorWithRed:0.83 green:0.78 blue:0.72 alpha:1].CGColor;
+    [ZNTheme styleButton:b kind:(primary ? ZNButtonAccent : ZNButtonLight) radius:6];
+    if (!primary) {
+        UIColor *dark = [UIColor colorWithRed:0.17 green:0.13 blue:0.11 alpha:1];
+        [b setTitleColor:dark forState:UIControlStateNormal];
+        [b setTitleColor:dark forState:UIControlStateHighlighted];
+    }
     CGSize s = [title sizeWithFont:b.titleLabel.font];
     b.frame = CGRectMake(x, 8, s.width + 22, 28);
     [b addTarget:self action:sel forControlEvents:UIControlEventTouchUpInside];

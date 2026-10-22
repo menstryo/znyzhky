@@ -29,23 +29,36 @@ UIImage *ZNStretchable(CGSize size, CGFloat radius, UIColor *fill, UIColor *shad
     return [img resizableImageWithCapInsets:UIEdgeInsetsMake(c, c, c, c)];
 }
 
+// iOS 7+: пласка картка з тонкою рамкою замість тіні
+static UIImage *ZNFlatCard(UIColor *fill) {
+    CGSize size = CGSizeMake(30, 30);
+    UIGraphicsBeginImageContextWithOptions(size, NO, [UIScreen mainScreen].scale);
+    UIBezierPath *p = [UIBezierPath bezierPathWithRoundedRect:CGRectMake(0.5f, 0.5f, 29, 29) cornerRadius:6];
+    [fill setFill]; [p fill];
+    [[UIColor colorWithRed:0.89 green:0.84 blue:0.79 alpha:1] setStroke]; p.lineWidth = 1; [p stroke];
+    UIImage *img = UIGraphicsGetImageFromCurrentImageContext();
+    UIGraphicsEndImageContext();
+    return [img resizableImageWithCapInsets:UIEdgeInsetsMake(8, 8, 8, 8)];
+}
 static UIImage *ZNCardImage(void) {
     static UIImage *i = nil;
-    if (!i) i = [ZNStretchable(CGSizeMake(30, 32), 7, [UIColor whiteColor],
-                               [UIColor colorWithRed:0.25 green:0.12 blue:0.08 alpha:0.30], 1.5, 1) retain];
+    if (!i) i = [([ZNTheme isFlat] ? ZNFlatCard([UIColor whiteColor]) :
+                  ZNStretchable(CGSizeMake(30, 32), 7, [UIColor whiteColor],
+                               [UIColor colorWithRed:0.25 green:0.12 blue:0.08 alpha:0.30], 1.5, 1)) retain];
     return i;
 }
 static UIImage *ZNCardPressedImage(void) {
     static UIImage *i = nil;
-    if (!i) i = [ZNStretchable(CGSizeMake(30, 32), 7, [UIColor colorWithRed:0.98 green:0.93 blue:0.90 alpha:1],
-                               [UIColor colorWithRed:0.25 green:0.12 blue:0.08 alpha:0.30], 1.5, 1) retain];
+    UIColor *c = [UIColor colorWithRed:0.98 green:0.93 blue:0.90 alpha:1];
+    if (!i) i = [([ZNTheme isFlat] ? ZNFlatCard(c) :
+                  ZNStretchable(CGSizeMake(30, 32), 7, c, [UIColor colorWithRed:0.25 green:0.12 blue:0.08 alpha:0.30], 1.5, 1)) retain];
     return i;
 }
 // жовтий цінник з тінню й прозорою облямівкою 1 px — тоді при повороті краї не «рвуться»
 UIImage *ZNTagImage(void) {
     static UIImage *i = nil;
     if (!i) i = [ZNStretchable(CGSizeMake(24, 26), 3, [UIColor colorWithRed:1.0 green:0.84 blue:0.24 alpha:1],
-                               [UIColor colorWithWhite:0 alpha:0.35], 1.5, 2) retain];
+                               [ZNTheme isFlat] ? nil : [UIColor colorWithWhite:0 alpha:0.35], [ZNTheme isFlat] ? 0 : 1.5f, 2) retain];
     return i;
 }
 
@@ -136,8 +149,6 @@ static UILabel *ZNLabel(UIFont *f, UIColor *c) {
 
         _add = [[UIButton buttonWithType:UIButtonTypeCustom] retain];
         _add.titleLabel.font = [UIFont boldSystemFontOfSize:11];
-        _add.layer.cornerRadius = 4;
-        _add.layer.borderWidth = 1;
         [_add addTarget:self action:@selector(addTapped) forControlEvents:UIControlEventTouchUpInside];
         [self.contentView addSubview:_add];
 
@@ -173,9 +184,7 @@ static UILabel *ZNLabel(UIFont *f, UIColor *c) {
 - (void)updateAddButton {
     BOOL in = _item && [[ZNStore shared] isInList:_item];
     [_add setTitle:(in ? @"✓ У списку" : @"+ У список") forState:UIControlStateNormal];
-    [_add setTitleColor:(in ? [UIColor whiteColor] : ZN_ACCENT_DARK) forState:UIControlStateNormal];
-    _add.layer.backgroundColor = (in ? ZN_ACCENT : [UIColor colorWithRed:0.99 green:0.96 blue:0.93 alpha:1]).CGColor;
-    _add.layer.borderColor = (in ? ZN_ACCENT_DARK : [UIColor colorWithRed:0.86 green:0.80 blue:0.75 alpha:1]).CGColor;
+    [ZNTheme styleButton:_add kind:(in ? ZNButtonAccent : ZNButtonLight) radius:4];
 }
 
 - (void)setItem:(NSDictionary *)item {
@@ -229,7 +238,7 @@ static UILabel *ZNLabel(UIFont *f, UIColor *c) {
     _tagBg.frame = _tag.bounds; // явно: autoresizing від нульового розміру додавав зайві 26 pt жовтого
     _old.frame = CGRectMake(4, 3, tw - 10, 10);
     _price.frame = CGRectMake(4, 12, tw - 10, 17);
-    _tag.transform = CGAffineTransformMakeRotation(-0.05);
+    if (![ZNTheme isFlat]) _tag.transform = CGAffineTransformMakeRotation(-0.05);   // iOS 7+ — рівно
 
     CGSize ts = [_title.text sizeWithFont:_title.font constrainedToSize:CGSizeMake(w - 14, 30) lineBreakMode:NSLineBreakByTruncatingTail];
     _title.frame = CGRectMake(7, ZN_PHOTO_H + 12, w - 14, MAX(15, ts.height)); // текст притиснутий догори

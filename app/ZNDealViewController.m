@@ -9,42 +9,6 @@
 // Екран товару, варіант «Вітрина»: велике фото на білому, жовтий цінник як у сітці,
 // економія, велика коралова кнопка «Додати до списку», нижче — дії.
 
-static UIImage *ZNButtonImage(BOOL pressed, BOOL done) {
-    CGSize size = CGSizeMake(30, 44);
-    CGFloat scale = [UIScreen mainScreen].scale;
-    UIGraphicsBeginImageContextWithOptions(size, NO, scale);
-    CGContextRef ctx = UIGraphicsGetCurrentContext();
-    CGRect r = CGRectMake(0.5f, 0.5f, size.width - 1, size.height - 2.5f);
-    UIBezierPath *path = [UIBezierPath bezierPathWithRoundedRect:r cornerRadius:8];
-    // тінь
-    CGContextSaveGState(ctx);
-    CGContextSetShadowWithColor(ctx, CGSizeMake(0, 1), 1.5f, [UIColor colorWithWhite:0 alpha:0.18].CGColor);
-    [[UIColor whiteColor] setFill]; [path fill];
-    CGContextRestoreGState(ctx);
-    // градієнт
-    CGFloat top[3], bot[3];
-    if (done) { top[0]=0.36; top[1]=0.66; top[2]=0.36; bot[0]=0.20; bot[1]=0.50; bot[2]=0.22; }
-    else      { top[0]=0.89; top[1]=0.42; top[2]=0.36; bot[0]=0.77; bot[1]=0.25; bot[2]=0.19; }
-    if (pressed) for (int i = 0; i < 3; i++) { top[i] *= 0.85f; bot[i] *= 0.85f; }
-    CGFloat comps[8] = { top[0], top[1], top[2], 1, bot[0], bot[1], bot[2], 1 };
-    CGColorSpaceRef cs = CGColorSpaceCreateDeviceRGB();
-    CGGradientRef g = CGGradientCreateWithColorComponents(cs, comps, NULL, 2);
-    CGContextSaveGState(ctx);
-    [path addClip];
-    CGContextDrawLinearGradient(ctx, g, CGPointMake(0, 0), CGPointMake(0, size.height), 0);
-    // світла лінія зверху
-    [[UIColor colorWithWhite:1 alpha:0.28] setFill];
-    CGContextFillRect(ctx, CGRectMake(0, 1, size.width, 1));
-    CGContextRestoreGState(ctx);
-    CGGradientRelease(g); CGColorSpaceRelease(cs);
-    // обвідка
-    [[UIColor colorWithRed:bot[0] * 0.8f green:bot[1] * 0.8f blue:bot[2] * 0.8f alpha:1] setStroke];
-    path.lineWidth = 1; [path stroke];
-    UIImage *img = UIGraphicsGetImageFromCurrentImageContext();
-    UIGraphicsEndImageContext();
-    return [img resizableImageWithCapInsets:UIEdgeInsetsMake(12, 12, 12, 12)];
-}
-
 static UILabel *ZNLbl(UIFont *f, UIColor *c) {
     UILabel *l = [[[UILabel alloc] init] autorelease];
     l.font = f; l.textColor = c; l.backgroundColor = [UIColor clearColor];
@@ -175,7 +139,7 @@ static UILabel *ZNLbl(UIFont *f, UIColor *c) {
     pr.text = ptxt; pr.textAlignment = NSTextAlignmentRight;
     pr.frame = CGRectMake(6, 18, tw - 18, 32);
     [tag addSubview:pr];
-    tag.transform = CGAffineTransformMakeRotation(-0.05);
+    if (![ZNTheme isFlat]) tag.transform = CGAffineTransformMakeRotation(-0.05);
     tag.layer.shouldRasterize = YES;
     tag.layer.rasterizationScale = [UIScreen mainScreen].scale;
     [h addSubview:tag];
@@ -233,8 +197,6 @@ static UILabel *ZNLbl(UIFont *f, UIColor *c) {
     _add.frame = CGRectMake(10, y, w - 20, 44);
     _add.autoresizingMask = UIViewAutoresizingFlexibleWidth;
     _add.titleLabel.font = [UIFont boldSystemFontOfSize:17];
-    _add.titleLabel.shadowOffset = CGSizeMake(0, -1);
-    [_add setTitleShadowColor:[UIColor colorWithWhite:0 alpha:0.3] forState:UIControlStateNormal];
     [_add addTarget:self action:@selector(toggleList) forControlEvents:UIControlEventTouchUpInside];
     [h addSubview:_add];
     [self updateButton];
@@ -247,8 +209,7 @@ static UILabel *ZNLbl(UIFont *f, UIColor *c) {
 - (void)updateButton {
     BOOL in = [[ZNStore shared] isInList:_item];
     [_add setTitle:in ? @"✓ У списку" : @"+ Додати до списку" forState:UIControlStateNormal];
-    [_add setBackgroundImage:ZNButtonImage(NO, in) forState:UIControlStateNormal];
-    [_add setBackgroundImage:ZNButtonImage(YES, in) forState:UIControlStateHighlighted];
+    [ZNTheme styleButton:_add kind:(in ? ZNButtonGreen : ZNButtonAccent) radius:8];
 }
 
 - (void)toggleList {

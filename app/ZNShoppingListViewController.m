@@ -10,14 +10,8 @@
 #define ZN_RULE  [UIColor colorWithRed:0.80 green:0.87 blue:0.92 alpha:1]
 #define ZN_MARGIN_LINE [UIColor colorWithRed:0.93 green:0.65 blue:0.60 alpha:1]
 
-// рукописний шрифт (за замовчуванням на iOS 6), як в оригінальних «Нотатках» (Marker Felt); iOS 7+ — системний
-static UIFont *ZNNoteFont(CGFloat size, BOOL bold) {
-    if ([ZNTheme handwriting]) {
-        UIFont *f = [UIFont fontWithName:bold ? @"MarkerFelt-Wide" : @"MarkerFelt-Thin" size:size + 3];
-        if (f) return f;
-    }
-    return bold ? [UIFont boldSystemFontOfSize:size] : [UIFont systemFontOfSize:size];
-}
+// рукописний шрифт «Нотаток» (Noteworthy) або системний — див. «Ще» → «Вигляд»
+static UIFont *ZNNoteFont(CGFloat size, BOOL bold) { return [ZNTheme noteFont:size bold:bold]; }
 
 #define ZN_LIST_ACCESSORY 33   // ширина стрілки праворуч
 
@@ -105,7 +99,7 @@ static UIFont *ZNNoteFont(CGFloat size, BOOL bold) {
         title.backgroundColor = [UIColor clearColor];
         [self.contentView addSubview:title];
         meta = [[UILabel alloc] init];
-        meta.font = ZNNoteFont(11, NO);
+        meta.font = ZNNoteFont(12, NO);
         meta.textColor = ZN_TEXT_MUTED;
         meta.backgroundColor = [UIColor clearColor];
         [self.contentView addSubview:meta];
@@ -134,7 +128,7 @@ static UIFont *ZNNoteFont(CGFloat size, BOOL bold) {
     CGSize ps = [p sizeWithFont:ZNNoteFont(15, YES)];
     CGFloat tw = w - 54 - ps.width - 18;
     CGSize ts = [t sizeWithFont:ZNNoteFont(15, NO) constrainedToSize:CGSizeMake(tw, 400) lineBreakMode:NSLineBreakByWordWrapping];
-    CGFloat mh = ceilf(ZNNoteFont(11, NO).lineHeight);
+    CGFloat mh = ceilf(ZNNoteFont(12, NO).lineHeight);
     return MAX(52, ceilf(7 + ts.height + 2 + mh + 8));
 }
 - (void)layoutSubviews {
@@ -277,7 +271,7 @@ static UIFont *ZNNoteFont(CGFloat size, BOOL bold) {
     }
     [_sections release];
     _sections = [sections retain];
-    _total.font = ZNNoteFont(15, YES); _saved.font = ZNNoteFont(13, NO); _empty.font = ZNNoteFont(15, NO);
+    _total.font = ZNNoteFont(14, YES); _total.adjustsFontSizeToFitWidth = YES; _saved.font = ZNNoteFont(13, NO); _empty.font = ZNNoteFont(15, NO);
     [_table reloadData];
 
     BOOL empty = entries.count == 0;
@@ -351,7 +345,7 @@ static UIFont *ZNNoteFont(CGFloat size, BOOL bold) {
         [c->check addTarget:self action:@selector(checkTapped:event:) forControlEvents:UIControlEventTouchUpInside];
     }
     // шрифт можна перемкнути в «Ще» — задаємо щоразу
-    c->title.font = ZNNoteFont(15, NO); c->meta.font = ZNNoteFont(11, NO); c->price.font = ZNNoteFont(15, YES);
+    c->title.font = ZNNoteFont(15, NO); c->meta.font = ZNNoteFont(12, NO); c->price.font = ZNNoteFont(15, YES);
     NSDictionary *e = [self entryAt:ip];
     BOOL done = [[e objectForKey:@"done"] boolValue];
     BOOL gone = [[e objectForKey:@"gone"] boolValue];
