@@ -20,6 +20,7 @@
 static UINavigationController *ZNNav(UIViewController *root, NSString *title, NSString *icon) {
     UINavigationController *n = [[[UINavigationController alloc] initWithRootViewController:root] autorelease];
     n.tabBarItem = [[[UITabBarItem alloc] initWithTitle:title image:[UIImage imageNamed:icon] tag:0] autorelease];
+    if ([n.navigationBar respondsToSelector:@selector(setTranslucent:)] && [ZNTheme isFlat]) n.navigationBar.translucent = NO;
     return n;
 }
 
@@ -39,6 +40,7 @@ static UINavigationController *ZNNav(UIViewController *root, NSString *title, NS
     _navPapers = [ZNNav(papers, @"Газетки", @"tab-news") retain];
     _navList   = [ZNNav(list, @"Список", @"tab-list") retain];
     _navMore   = [ZNNav(more, @"Ще", @"tab-more") retain];
+    if ([ZNTheme isFlat]) self.tabs.tabBar.translucent = NO;
     [self updateTabs];
 
     self.window.rootViewController = self.tabs;

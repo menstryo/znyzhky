@@ -10,7 +10,8 @@
     // навбар
     UINavigationBar *nb = [UINavigationBar appearance];
     if (flat) {
-        if ([nb respondsToSelector:@selector(setBarTintColor:)]) [nb performSelector:@selector(setBarTintColor:) withObject:ZN_ACCENT];
+        // appearance-проксі не відповідає на respondsToSelector:, тож перевіряємо сам клас
+        if ([UINavigationBar instancesRespondToSelector:@selector(setBarTintColor:)]) [nb performSelector:@selector(setBarTintColor:) withObject:ZN_ACCENT];
         nb.tintColor = [UIColor whiteColor];
         nb.titleTextAttributes = @{ NSForegroundColorAttributeName: [UIColor whiteColor] };
     } else {
@@ -24,13 +25,14 @@
     // таббар — теплий темний, вибрана вкладка коралова
     UITabBar *tb = [UITabBar appearance];
     if (flat) {
-        tb.tintColor = ZN_ACCENT;
+        if ([UITabBar instancesRespondToSelector:@selector(setBarTintColor:)]) [tb performSelector:@selector(setBarTintColor:) withObject:ZN_TABBAR];
+        tb.tintColor = ZN_ACCENT_SOFT;
     } else {
         tb.tintColor = ZN_TABBAR;
         tb.selectedImageTintColor = ZN_ACCENT_SOFT;
     }
-    NSDictionary *normal = @{ UITextAttributeTextColor: flat ? [UIColor grayColor] : [UIColor colorWithWhite:0.75 alpha:1] };
-    NSDictionary *selected = @{ UITextAttributeTextColor: flat ? ZN_ACCENT : ZN_ACCENT_SOFT };
+    NSDictionary *normal = @{ UITextAttributeTextColor: [UIColor colorWithWhite:0.75 alpha:1] };
+    NSDictionary *selected = @{ UITextAttributeTextColor: ZN_ACCENT_SOFT };
     [[UITabBarItem appearance] setTitleTextAttributes:normal forState:UIControlStateNormal];
     [[UITabBarItem appearance] setTitleTextAttributes:selected forState:UIControlStateSelected];
 
