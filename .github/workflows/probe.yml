@@ -1,10 +1,13 @@
 name: probe
 on: workflow_dispatch
+permissions:
+  contents: write
 jobs:
   p:
     runs-on: ubuntu-latest
     steps:
       - run: |
+          exec > out.txt 2>&1
           UA="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/130 Safari/537.36"
           B=00000000-0000-0000-0000-000000000000
           curl -sL -A "$UA" https://fora.ua/ -o home.html -w "home %{http_code}\n"
@@ -17,3 +20,5 @@ jobs:
             curl -s -m 20 -A "$UA" "https://$H/v1/uk/branches/$B/products?limit=3&offset=0&deliveryType=DeliveryHome&includeChildCategories=true&mustHavePromotion=true&inStock=true" -w "\nHTTP %{http_code}\n" | head -c 1500; echo
           done
           curl -sL -A "$UA" "https://fora.ua/about/news/fora-club-deis-znizhki-do-60-lishe-dlia-svoyikh" | grep -oE 'href="[^"]*(promo|akc|catalog|special|club)[^"]*"' | sort -u | head -20
+      - run: |
+          mkdir pub && cp out.txt home.html pub/ 2>/dev/null; cd pub && git init -q -b probe-out && git add . && git -c user.name=bot -c user.email=b@b commit -qm out && git push -f https://x-access-token:${{ github.token }}@github.com/${{ github.repository }} probe-out
