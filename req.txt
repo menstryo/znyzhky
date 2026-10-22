@@ -1,0 +1,27 @@
+REQ https://api.catalog.ecom.fora.ua/api/2.0/exec/EcomCatalogGlobal
+HEADERS {"sec-ch-ua-platform":"\"Windows\"","referer":"https://fora.ua/","accept-language":"uk-UA","sec-ch-ua":"\"Google Chrome\";v=\"155\", \"Chromium\";v=\"155\", \"Not(A:Brand\";v=\"24\"","sec-ch-ua-mobile":"?0","user-uid":"a26c1876-df84-7af1-735d-b0a9a353ed3c","x-sessionid":"undefined","user-agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36","accept":"application/json, text/plain, */*","content-type":"application/json"}
+BODY {"method":"GetCatalogItemsSorting","data":{"deliveryType":2,"filialId":3805,"merchantId":2}}
+
+REQ https://api.catalog.ecom.fora.ua/api/2.0/exec/EcomCatalogGlobal
+HEADERS {"sec-ch-ua-platform":"\"Windows\"","referer":"https://fora.ua/","accept-language":"uk-UA","sec-ch-ua":"\"Google Chrome\";v=\"155\", \"Chromium\";v=\"155\", \"Not(A:Brand\";v=\"24\"","sec-ch-ua-mobile":"?0","user-uid":"a26c1876-df84-7af1-735d-b0a9a353ed3c","x-sessionid":"undefined","user-agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36","accept":"application/json, text/plain, */*","content-type":"application/json"}
+BODY {"method":"GetCategories","data":{"deliveryType":2,"filialId":3805,"merchantId":2}}
+
+REQ https://api.catalog.ecom.fora.ua/api/2.0/exec/EcomCatalogGlobal
+HEADERS {"sec-ch-ua-platform":"\"Windows\"","referer":"https://fora.ua/","accept-language":"uk-UA","sec-ch-ua":"\"Google Chrome\";v=\"155\", \"Chromium\";v=\"155\", \"Not(A:Brand\";v=\"24\"","sec-ch-ua-mobile":"?0","user-uid":"a26c1876-df84-7af1-735d-b0a9a353ed3c","x-sessionid":"undefined","user-agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36","accept":"application/json, text/plain, */*","content-type":"application/json"}
+BODY {"method":"GetPromoFilters","data":{"deliveryType":2,"filialId":3805,"merchantId":2}}
+
+REQ https://api.catalog.ecom.fora.ua/api/2.0/exec/EcomCatalogGlobal
+HEADERS {"sec-ch-ua-platform":"\"Windows\"","referer":"https://fora.ua/","accept-language":"uk-UA","sec-ch-ua":"\"Google Chrome\";v=\"155\", \"Chromium\";v=\"155\", \"Not(A:Brand\";v=\"24\"","sec-ch-ua-mobile":"?0","user-uid":"a26c1876-df84-7af1-735d-b0a9a353ed3c","x-sessionid":"undefined","user-agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36","accept":"application/json, text/plain, */*","content-type":"application/json"}
+BODY {"method":"GetPromotionCollection","data":{"deliveryType":2,"filialId":3805,"memberId":"","merchantId":2}}
+
+REQ https://api.catalog.ecom.fora.ua/api/2.0/exec/EcomCatalogGlobal
+HEADERS {"sec-ch-ua-platform":"\"Windows\"","referer":"https://fora.ua/","accept-language":"uk-UA","sec-ch-ua":"\"Google Chrome\";v=\"155\", \"Chromium\";v=\"155\", \"Not(A:Brand\";v=\"24\"","sec-ch-ua-mobile":"?0","user-uid":"a26c1876-df84-7af1-735d-b0a9a353ed3c","x-sessionid":"undefined","user-agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36","accept":"application/json, text/plain, */*","content-type":"application/json"}
+BODY {"method":"GetPromoFilters","data":{"merchantId":2,"deliveryType":2,"promoId":null,"filialId":3805,"setId":null}}
+
+REQ https://api.catalog.ecom.fora.ua/api/2.0/exec/EcomCatalogGlobal
+HEADERS {"sec-ch-ua-platform":"\"Windows\"","referer":"https://fora.ua/","accept-language":"uk-UA","sec-ch-ua":"\"Google Chrome\";v=\"155\", \"Chromium\";v=\"155\", \"Not(A:Brand\";v=\"24\"","sec-ch-ua-mobile":"?0","user-uid":"a26c1876-df84-7af1-735d-b0a9a353ed3c","x-sessionid":"undefined","user-agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36","accept":"application/json, text/plain, */*","content-type":"application/json"}
+BODY {"method":"GetPromoFilters","data":{"merchantId":2,"deliveryType":2,"promoId":null,"filialId":3805,"setId":null}}
+
+REQ https://api.catalog.ecom.fora.ua/api/2.0/exec/EcomCatalogGlobal
+HEADERS {"sec-ch-ua-platform":"\"Windows\"","referer":"https://fora.ua/","accept-language":"uk-UA","sec-ch-ua":"\"Google Chrome\";v=\"155\", \"Chromium\";v=\"155\", \"Not(A:Brand\";v=\"24\"","sec-ch-ua-mobile":"?0","user-uid":"a26c1876-df84-7af1-735d-b0a9a353ed3c","x-sessionid":"undefined","user-agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36","accept":"application/json, text/plain, */*","content-type":"application/json"}
+BODY {"method":"GetSimpleCatalogItems","data":{"merchantId":2,"deliveryType":2,"filialId":3805,"From":1,"businessId":1,"To":30,"onlyPromo":true,"RangeFilters":{},"MultiFilters":{},"UniversalFilters":[],"CategoryFilter":[],"Promos":[]}}
