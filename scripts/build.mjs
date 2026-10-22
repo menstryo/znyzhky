@@ -17,6 +17,7 @@ import * as avrora from "./sources/avrora.mjs";
 import * as zakaz from "./sources/zakaz.mjs";
 import { CITIES, ZAKAZ_CHAINS, LEAFLET_CHAINS } from "./cities.mjs";
 import { fetchLeaflets, fetchForta, gtsViaBrowser } from "./leaflets.mjs";
+import { addComparisons } from "./compare.mjs";
 
 const SOURCES = [silpo, atb, varus, fora, avrora];
 
@@ -270,6 +271,18 @@ if (!process.env.FIXTURES && !process.env.NO_CITIES) {
 }
 
 await closeBrowser();
+
+// 4. порівняння цін між мережами: дописуємо товарам поле m
+try {
+  const loaded = storesMeta.filter(m => m.count > 0).map(m => {
+    const file = path.join(OUT, "store", `${m.id}.json`);
+    return { id: m.id, city: m.city, file, json: JSON.parse(fs.readFileSync(file, "utf8")) };
+  });
+  addComparisons(loaded.map(l => ({ id: l.id, city: l.city, items: l.json.items })), m => console.log(m));
+  for (const l of loaded) fs.writeFileSync(l.file, JSON.stringify(l.json));
+} catch (e) {
+  console.log(`порівняння: ПОМИЛКА ${e.message}`);
+}
 
 fs.writeFileSync(path.join(OUT, "index.json"), JSON.stringify({
   updated: now.toISOString(),

@@ -343,6 +343,32 @@ static NSDate *ZNParseISODate(NSString *s) {
 
 #pragma mark - rebuild
 
+- (NSArray *)comparisonsForItem:(NSDictionary *)item {
+    NSArray *m = [item objectForKey:@"m"];
+    if (![m isKindOfClass:[NSArray class]] || !m.count) return @[];
+    NSString *city = self.cityId;
+    NSMutableArray *out = [NSMutableArray array];
+    NSMutableSet *stores = [NSMutableSet set];
+    for (NSArray *e in m) {
+        if (![e isKindOfClass:[NSArray class]] || e.count < 2) continue;
+        NSString *sid = [e objectAtIndex:0];
+        if (![sid isKindOfClass:[NSString class]]) continue;
+        if ([sid hasSuffix:@"-*"]) {           // міська мережа — магазин вибраного міста
+            if (!city) continue;
+            sid = [[sid substringToIndex:sid.length - 1] stringByAppendingString:city];
+        }
+        if ([stores containsObject:sid]) continue;
+        NSDictionary *other = [self.itemsByKey objectForKey:[NSString stringWithFormat:@"%@:%@", sid, [e objectAtIndex:1]]];
+        if (!other) continue;
+        [stores addObject:sid];
+        [out addObject:other];
+    }
+    [out sortUsingComparator:^NSComparisonResult(NSDictionary *a, NSDictionary *b) {
+        return [[a objectForKey:@"p"] compare:[b objectForKey:@"p"]];
+    }];
+    return out;
+}
+
 - (void)rebuildFromCache:(void (^)(void))done {
     void (^doneCopy)(void) = [done copy];
     dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{

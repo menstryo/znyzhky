@@ -53,6 +53,9 @@ typedef enum { ZNSortSmart = 0, ZNSortDiscount, ZNSortPrice, ZNSortEnding } ZNSo
 - (NSArray *)categoryIdsForGroup:(ZNGroup)g;
 - (NSUInteger)countForStores:(NSArray *)stores group:(ZNGroup)g categories:(NSArray *)cats minDiscount:(NSInteger)minD;
 
+// порівняння: той самий товар в інших мережах (лише видимі магазини), за зростанням ціни
+- (NSArray *)comparisonsForItem:(NSDictionary *)item;
+
 // довідники
 - (NSString *)storeName:(NSString *)storeId;
 - (NSString *)categoryName:(NSString *)catId;

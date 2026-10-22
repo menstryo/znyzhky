@@ -54,6 +54,7 @@ static UILabel *ZNLbl(UIFont *f, UIColor *c) {
 @interface ZNDealViewController () {
     NSDictionary *_item;
     UIButton *_add;
+    NSArray *_cmp;    // [цей товар + відповідники], за ціною
 }
 @end
 
@@ -69,13 +70,22 @@ static UILabel *ZNLbl(UIFont *f, UIColor *c) {
 
 - (void)dealloc {
     [[NSNotificationCenter defaultCenter] removeObserver:self];
-    [_item release]; [_add release];
+    [_item release]; [_add release]; [_cmp release];
     [super dealloc];
 }
 
 - (void)viewDidLoad {
     [super viewDidLoad];
     [ZNTheme styleGroupedTable:self.tableView];
+    NSArray *others = [[ZNStore shared] comparisonsForItem:_item];
+    if (others.count) {
+        NSMutableArray *all = [NSMutableArray arrayWithArray:others];
+        [all addObject:_item];
+        [all sortUsingComparator:^NSComparisonResult(NSDictionary *a, NSDictionary *b) {
+            return [[a objectForKey:@"p"] compare:[b objectForKey:@"p"]];
+        }];
+        _cmp = [all retain];
+    }
     self.tableView.tableHeaderView = [self buildHeader];
     [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(updateButton)
                                                  name:ZNStoreListChangedNotification object:nil];
@@ -200,6 +210,23 @@ static UILabel *ZNLbl(UIFont *f, UIColor *c) {
         y += 22;
     }
 
+    // підказка, якщо деінде дешевше
+    if (_cmp.count > 1) {
+        NSDictionary *best = [_cmp objectAtIndex:0];
+        UILabel *hint = ZNLbl([UIFont boldSystemFontOfSize:13], ZN_ACCENT_DARK);
+        if (![[best objectForKey:@"k"] isEqual:[_item objectForKey:@"k"]] &&
+            [[best objectForKey:@"p"] doubleValue] < p) {
+            hint.text = [NSString stringWithFormat:@"Дешевше в %@: %@ ↓", [[ZNStore shared] storeName:[best objectForKey:@"s"]],
+                         ZNPrice([best objectForKey:@"p"])];
+        } else {
+            hint.textColor = [UIColor colorWithRed:0.18 green:0.54 blue:0.23 alpha:1];
+            hint.text = [NSString stringWithFormat:@"✓ Найдешевше серед %lu мереж", (unsigned long)_cmp.count];
+        }
+        hint.frame = CGRectMake(12, y, w - 24, 18);
+        [h addSubview:hint];
+        y += 22;
+    }
+
     // кнопка
     y += 6;
     _add = [[UIButton buttonWithType:UIButtonTypeCustom] retain];
@@ -229,15 +256,68 @@ static UILabel *ZNLbl(UIFont *f, UIColor *c) {
     [self updateButton];
 }
 
-#pragma mark - table: дії
+#pragma mark - table: порівняння + дії
 
-- (NSInteger)numberOfSectionsInTableView:(UITableView *)tv { return 1; }
+- (BOOL)hasCmp { return _cmp.count > 1; }
+- (NSInteger)actSection { return self.hasCmp ? 1 : 0; }
+
+- (NSInteger)numberOfSectionsInTableView:(UITableView *)tv { return self.hasCmp ? 2 : 1; }
 
 - (NSInteger)tableView:(UITableView *)tv numberOfRowsInSection:(NSInteger)s {
-    return [_item objectForKey:@"l"] ? 2 : 1;
+    if (s == self.actSection) return [_item objectForKey:@"l"] ? 2 : 1;
+    return _cmp.count;
+}
+
+- (NSString *)cmpTitle { return @"Ціни в інших мережах"; }
+- (NSString *)cmpFooter { return @"Порівнюємо той самий товар (бренд і фасовка), що зараз в акції в інших мережах."; }
+
+- (UIView *)tableView:(UITableView *)tv viewForHeaderInSection:(NSInteger)s {
+    if (s == self.actSection) return nil;
+    return [ZNTheme sectionHeaderWithTitle:self.cmpTitle width:tv.bounds.size.width];
+}
+- (CGFloat)tableView:(UITableView *)tv heightForHeaderInSection:(NSInteger)s { return s == self.actSection ? 10 : 40; }
+- (UIView *)tableView:(UITableView *)tv viewForFooterInSection:(NSInteger)s {
+    if (s == self.actSection) return nil;
+    return [ZNTheme sectionFooterWithText:self.cmpFooter width:tv.bounds.size.width];
+}
+- (CGFloat)tableView:(UITableView *)tv heightForFooterInSection:(NSInteger)s {
+    if (s == self.actSection) return 10;
+    return [ZNTheme heightForFooterText:self.cmpFooter width:tv.bounds.size.width];
+}
+
+- (CGFloat)tableView:(UITableView *)tv heightForRowAtIndexPath:(NSIndexPath *)ip {
+    return ip.section == self.actSection ? 44 : 52;
+}
+
+- (UITableViewCell *)cmpCell:(UITableView *)tv row:(NSInteger)row {
+    UITableViewCell *c = [tv dequeueReusableCellWithIdentifier:@"cmp"];
+    UILabel *price;
+    if (!c) {
+        c = [[[UITableViewCell alloc] initWithStyle:UITableViewCellStyleSubtitle reuseIdentifier:@"cmp"] autorelease];
+        c.textLabel.font = [UIFont boldSystemFontOfSize:16];
+        c.detailTextLabel.font = [UIFont systemFontOfSize:12];
+        c.detailTextLabel.textColor = ZN_TEXT_MUTED;
+        price = ZNLbl([UIFont boldSystemFontOfSize:17], [UIColor blackColor]);
+        price.textAlignment = NSTextAlignmentRight;
+        price.frame = CGRectMake(0, 0, 96, 40);
+        c.accessoryView = price;
+    }
+    price = (UILabel *)c.accessoryView;
+    NSDictionary *it = [_cmp objectAtIndex:row];
+    BOOL me = [[it objectForKey:@"k"] isEqual:[_item objectForKey:@"k"]];
+    BOOL cheapest = row == 0 && [[it objectForKey:@"p"] doubleValue] < [[[_cmp objectAtIndex:1] objectForKey:@"p"] doubleValue];
+    NSString *store = [[ZNStore shared] storeName:[it objectForKey:@"s"]];
+    c.textLabel.text = me ? [store stringByAppendingString:@" · цей товар"] : store;
+    c.textLabel.textColor = me ? ZN_ACCENT_DARK : [UIColor colorWithRed:0.17 green:0.13 blue:0.12 alpha:1];
+    c.detailTextLabel.text = [it objectForKey:@"t"];
+    price.text = [NSString stringWithFormat:@"%@%@", cheapest ? @"✓ " : @"", ZNPrice([it objectForKey:@"p"])];
+    price.textColor = cheapest ? [UIColor colorWithRed:0.18 green:0.54 blue:0.23 alpha:1] : [UIColor colorWithRed:0.17 green:0.13 blue:0.12 alpha:1];
+    c.selectionStyle = me ? UITableViewCellSelectionStyleNone : UITableViewCellSelectionStyleBlue;
+    return c;
 }
 
 - (UITableViewCell *)tableView:(UITableView *)tv cellForRowAtIndexPath:(NSIndexPath *)ip {
+    if (ip.section != self.actSection) return [self cmpCell:tv row:ip.row];
     UITableViewCell *c = [tv dequeueReusableCellWithIdentifier:@"act"];
     if (!c) c = [[[UITableViewCell alloc] initWithStyle:UITableViewCellStyleValue1 reuseIdentifier:@"act"] autorelease];
     c.detailTextLabel.textColor = ZN_TEXT_MUTED;
@@ -256,6 +336,12 @@ static UILabel *ZNLbl(UIFont *f, UIColor *c) {
 
 - (void)tableView:(UITableView *)tv didSelectRowAtIndexPath:(NSIndexPath *)ip {
     [tv deselectRowAtIndexPath:ip animated:YES];
+    if (ip.section != self.actSection) {
+        NSDictionary *it = [_cmp objectAtIndex:ip.row];
+        if ([[it objectForKey:@"k"] isEqual:[_item objectForKey:@"k"]]) return;
+        [self.navigationController pushViewController:[[[ZNDealViewController alloc] initWithItem:it] autorelease] animated:YES];
+        return;
+    }
     if (ip.row == 0) {
         [UIPasteboard generalPasteboard].string = [_item objectForKey:@"t"];
         UIAlertView *a = [[[UIAlertView alloc] initWithTitle:nil message:@"Назву скопійовано" delegate:nil
