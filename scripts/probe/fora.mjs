@@ -6,22 +6,27 @@ const ctx = await browser.newContext({ locale: "uk-UA", userAgent: "Mozilla/5.0 
 await ctx.addInitScript(() => { Object.defineProperty(navigator, "webdriver", { get: () => undefined }); });
 const page = await ctx.newPage();
 const reqs = [];
+let sample = null;
+page.on("request", r => {
+  if (/EcomCatalogGlobal/.test(r.url())) reqs.push(`REQ ${r.url()}\nHEADERS ${JSON.stringify(r.headers())}\nBODY ${r.postData()}\n`);
+});
 page.on("response", async r => {
-  const u = r.url(); const t = r.request().resourceType();
-  if (t === "xhr" || t === "fetch") {
-    let body = ""; try { body = (await r.text()).slice(0, 1500); } catch {}
-    reqs.push(`${r.status()} ${r.request().method()} ${u}\n${body}\n`);
+  if (/EcomCatalogGlobal/.test(r.url())) {
+    const t = await r.text().catch(() => "");
+    if (/oldPrice/.test(t) && !sample) { sample = { body: r.request().postData(), headers: r.request().headers() }; fs.writeFileSync("sample-resp.json", t); }
   }
 });
-const urls = ["https://fora.ua/", "https://fora.ua/about/news/fora-club-deis-znizhki-do-60-lishe-dlia-svoyikh", "https://fora.ua/promotions", "https://fora.ua/category/akcii", "https://fora.ua/special-offers"];
-for (const u of urls) {
+await page.goto("https://fora.ua/all-offers", { waitUntil: "networkidle", timeout: 60000 }).catch(e => reqs.push("ERR " + e.message));
+await page.waitForTimeout(4000);
+fs.writeFileSync("req.txt", reqs.join("\n"));
+// plain fetch (no browser) with same body
+if (sample) {
+  const h = { "content-type": "application/json", "user-agent": "Mozilla/5.0 Chrome/130" };
+  for (const k of Object.keys(sample.headers)) if (!/^(cookie|sec-|accept-encoding|content-length)/i.test(k) && !k.startsWith(":")) h[k] = sample.headers[k];
   try {
-    await page.goto(u, { waitUntil: "networkidle", timeout: 60000 });
-  } catch (e) { reqs.push(`GOTO ERR ${u} ${e.message}`); }
-  await page.waitForTimeout(4000);
-  const links = await page.$$eval("a[href]", as => [...new Set(as.map(a => a.href))]).catch(() => []);
-  fs.appendFileSync("links.txt", `== ${u} title=${await page.title()}\n${links.join("\n")}\n`);
-  fs.writeFileSync(`page-${urls.indexOf(u)}.html`, await page.content());
+    const r = await fetch("https://api.catalog.ecom.fora.ua/api/2.0/exec/EcomCatalogGlobal", { method: "POST", headers: h, body: sample.body });
+    const t = await r.text();
+    fs.writeFileSync("plain.txt", `HTTP ${r.status}\nheaders sent ${JSON.stringify(h)}\n${t.slice(0, 3000)}`);
+  } catch (e) { fs.writeFileSync("plain.txt", "ERR " + e.message); }
 }
-fs.writeFileSync("xhr.txt", reqs.join("\n"));
 await browser.close();
