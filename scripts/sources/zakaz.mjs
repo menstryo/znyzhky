@@ -28,7 +28,7 @@ export function normalize(it) {
   const d = it.discount || {};
   const old = d.old_price ? d.old_price / 100 : null;
   if (!price || !old || old <= price || !d.status) return null;
-  const img = it.img && (it.img.s200x200 || it.img.s350x350 || it.img.s150x150);
+  const img = it.img && (it.img.s350x350 || it.img.s200x200 || it.img.s150x150);
   return {
     id: String(it.ean || it.sku),
     t: String(it.title || "").trim(),

@@ -27,14 +27,14 @@ const origLog = console.log;
 console.log = (...args) => { LOG.push(args.join(" ")); origLog(...args); };
 
 const OUT = path.resolve("public");
-const IMG_CACHE = path.resolve(".cache/img");
+const IMG_CACHE = path.resolve(".cache/img300");   // нова папка: старі 120-піксельні не підхоплюються
 const PAGES_URL = (process.env.PAGES_URL || "").replace(/\/$/, "");
 const PER_CATEGORY = +process.env.PER_CATEGORY || 150; // макс. товарів на категорію в одному магазині
 const PER_CATEGORY_CITY = 80;                           // для міських магазинів (їх багато)
 const LF_CACHE = path.resolve(".cache/lf");
 const LF_WIDTH = 640;                                    // ширина сторінки газетки (320 pt @2x)
 const MIN_DISCOUNT = 5;
-const THUMB = 120;
+const THUMB = 300;   // 2× для фото на екрані товару (≈170 pt), у сітці — з запасом
 
 fs.rmSync(OUT, { recursive: true, force: true });
 fs.mkdirSync(path.join(OUT, "store"), { recursive: true });
@@ -88,7 +88,8 @@ async function thumb(storeId, src) {
 
 // dir — папка мініатюр: для міських магазинів спільна на мережу (Metro у різних містах — ті самі фото)
 async function thumbIn(storeId, dir, src) {
-  const name = `${hashOf(src)}.jpg`;
+  // суфікс -3: інше ім'я файлу, щоб застосунок не взяв зі свого дискового кешу старе мило
+  const name = `${hashOf(src)}-3.jpg`;
   const cached = path.join(IMG_CACHE, dir, name);
   if (!fs.existsSync(cached)) {
     if (NO_IMAGES || (imgFails[storeId] || 0) >= IMG_FAIL_LIMIT) return null;
@@ -106,7 +107,7 @@ async function thumbIn(storeId, dir, src) {
       const jpg = await sharp(buf)
         .resize(THUMB, THUMB, { fit: "contain", background: "#ffffff" })
         .flatten({ background: "#ffffff" })
-        .jpeg({ quality: 72, progressive: false, mozjpeg: false })
+        .jpeg({ quality: 78, progressive: false, mozjpeg: false })
         .toBuffer();
       fs.mkdirSync(path.dirname(cached), { recursive: true });
       fs.writeFileSync(cached, jpg);
