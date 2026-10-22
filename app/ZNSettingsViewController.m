@@ -5,7 +5,7 @@
 #import "ZNLeafletsViewController.h"
 #import "ZNNotifier.h"
 
-enum { ZNSecCity = 0, ZNSecNotify, ZNSecLook, ZNSecWords, ZNSecData, ZNSecAbout, ZNSecCount };
+enum { ZNSecCity = 0, ZNSecLook, ZNSecNotify, ZNSecWords, ZNSecData, ZNSecAbout, ZNSecCount };
 
 @implementation ZNSettingsViewController
 
