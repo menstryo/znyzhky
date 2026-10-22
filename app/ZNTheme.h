@@ -12,7 +12,9 @@
 
 @interface ZNTheme : NSObject
 + (void)apply;                                        // UIAppearance для всього застосунку
-+ (BOOL)isFlat;                                       // iOS 7+
++ (BOOL)isFlat;
++ (BOOL)handwriting;                                  // рукописний шрифт у списку (iOS 6 — так, iOS 7+ — ні, змінюється в «Ще»)
++ (void)setHandwriting:(BOOL)on;                                       // iOS 7+
 + (void)styleGroupedTable:(UITableView *)tv;          // кремовий фон замість смугастого
 + (UIView *)sectionHeaderWithTitle:(NSString *)title width:(CGFloat)w;
 + (UIView *)sectionFooterWithText:(NSString *)text width:(CGFloat)w;

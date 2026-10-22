@@ -4,6 +4,15 @@
 
 + (BOOL)isFlat { return [[[UIDevice currentDevice] systemVersion] floatValue] >= 7; }
 
++ (BOOL)handwriting {
+    id v = [[NSUserDefaults standardUserDefaults] objectForKey:@"handwriting"];
+    return v ? [v boolValue] : ![self isFlat];
+}
++ (void)setHandwriting:(BOOL)on {
+    [[NSUserDefaults standardUserDefaults] setBool:on forKey:@"handwriting"];
+    [[NSUserDefaults standardUserDefaults] synchronize];
+}
+
 + (void)apply {
     BOOL flat = [self isFlat];
 
@@ -20,6 +29,9 @@
 
     // пошук і сегменти — у тон навбару (на iOS 6 вони сині за замовчуванням)
     [[UISearchBar appearance] setTintColor:flat ? ZN_ACCENT : ZN_BG_HEADER];
+    // iOS 7+: «Скасувати» в пошуку на кораловому навбарі — білим (інакше коралове на кораловому)
+    if (flat) [[UIBarButtonItem appearanceWhenContainedIn:[UISearchBar class], nil]
+                  setTitleTextAttributes:@{ UITextAttributeTextColor: [UIColor whiteColor] } forState:UIControlStateNormal];
     [[UISegmentedControl appearance] setTintColor:ZN_ACCENT];
 
     // таббар — теплий темний, вибрана вкладка коралова

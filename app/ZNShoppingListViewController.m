@@ -10,9 +10,9 @@
 #define ZN_RULE  [UIColor colorWithRed:0.80 green:0.87 blue:0.92 alpha:1]
 #define ZN_MARGIN_LINE [UIColor colorWithRed:0.93 green:0.65 blue:0.60 alpha:1]
 
-// iOS 6: рукописний шрифт, як в оригінальних «Нотатках» (Marker Felt); iOS 7+ — системний
+// рукописний шрифт (за замовчуванням на iOS 6), як в оригінальних «Нотатках» (Marker Felt); iOS 7+ — системний
 static UIFont *ZNNoteFont(CGFloat size, BOOL bold) {
-    if (![ZNTheme isFlat]) {
+    if ([ZNTheme handwriting]) {
         UIFont *f = [UIFont fontWithName:bold ? @"MarkerFelt-Wide" : @"MarkerFelt-Thin" size:size + 3];
         if (f) return f;
     }
@@ -277,6 +277,7 @@ static UIFont *ZNNoteFont(CGFloat size, BOOL bold) {
     }
     [_sections release];
     _sections = [sections retain];
+    _total.font = ZNNoteFont(15, YES); _saved.font = ZNNoteFont(13, NO); _empty.font = ZNNoteFont(15, NO);
     [_table reloadData];
 
     BOOL empty = entries.count == 0;
@@ -349,6 +350,8 @@ static UIFont *ZNNoteFont(CGFloat size, BOOL bold) {
         c = [[[ZNListCell alloc] initWithStyle:UITableViewCellStyleDefault reuseIdentifier:@"l"] autorelease];
         [c->check addTarget:self action:@selector(checkTapped:event:) forControlEvents:UIControlEventTouchUpInside];
     }
+    // шрифт можна перемкнути в «Ще» — задаємо щоразу
+    c->title.font = ZNNoteFont(15, NO); c->meta.font = ZNNoteFont(11, NO); c->price.font = ZNNoteFont(15, YES);
     NSDictionary *e = [self entryAt:ip];
     BOOL done = [[e objectForKey:@"done"] boolValue];
     BOOL gone = [[e objectForKey:@"gone"] boolValue];
