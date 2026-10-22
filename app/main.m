@@ -6,6 +6,7 @@
 #import "ZNShoppingListViewController.h"
 #import "ZNSettingsViewController.h"
 #import "ZNLeafletsViewController.h"
+#import "ZNNotifier.h"
 
 @interface ZNAppDelegate : UIResponder <UIApplicationDelegate> {
     UINavigationController *_navDeals, *_navPapers, *_navList, *_navMore;
@@ -53,6 +54,11 @@ static UINavigationController *ZNNav(UIViewController *root, NSString *title, NS
                                                  name:ZNStoreListChangedNotification object:nil];
     [self updateBadge];
     [[ZNStore shared] refreshIfStale];
+    [[ZNNotifier shared] start];
+    [[ZNNotifier shared] askPermissionIfNeeded];
+    // фонова перевірка: iOS 7+ — Background Fetch (раз на ~2 год, вирішує система)
+    if ([app respondsToSelector:@selector(setMinimumBackgroundFetchInterval:)])
+        [app setMinimumBackgroundFetchInterval:2 * 3600];
     // перший запуск — спитати місто (один раз)
     NSUserDefaults *ud = [NSUserDefaults standardUserDefaults];
     if (![ZNStore shared].cityId && ![ud boolForKey:@"cityAsked"]) {
@@ -96,6 +102,35 @@ static UINavigationController *ZNNav(UIViewController *root, NSString *title, NS
     NSUInteger open = st.listOpenCount, words = st.watchMatchCount;
     _navList.tabBarItem.badgeValue = open ? [NSString stringWithFormat:@"%lu", (unsigned long)open] : nil;
     _navMore.tabBarItem.badgeValue = words ? [NSString stringWithFormat:@"%lu", (unsigned long)words] : nil;
+}
+
+// iOS 7+
+- (void)application:(UIApplication *)app performFetchWithCompletionHandler:(void (^)(UIBackgroundFetchResult))completion {
+    [[ZNNotifier shared] backgroundRefresh:^(BOOL newData) {
+        completion(newData ? UIBackgroundFetchResultNewData : UIBackgroundFetchResultNoData);
+    }];
+}
+
+// iOS 6: Background Fetch немає — будимося через VoIP keep-alive (≥10 хв), оновлюємо не частіше ніж раз на 2 год
+- (void)applicationDidEnterBackground:(UIApplication *)app {
+    if ([app respondsToSelector:@selector(setMinimumBackgroundFetchInterval:)]) return;
+    [app setKeepAliveTimeout:600 handler:^{
+        if (![[ZNNotifier shared] shouldRefreshInBackground]) return;
+        __block UIBackgroundTaskIdentifier task = [app beginBackgroundTaskWithExpirationHandler:^{
+            [app endBackgroundTask:task]; task = UIBackgroundTaskInvalid;
+        }];
+        [[ZNNotifier shared] backgroundRefresh:^(BOOL newData) {
+            if (task != UIBackgroundTaskInvalid) { [app endBackgroundTask:task]; task = UIBackgroundTaskInvalid; }
+        }];
+    }];
+}
+
+- (void)application:(UIApplication *)app didReceiveLocalNotification:(UILocalNotification *)n {
+    // відкрили з банера — показуємо відповідну вкладку
+    NSString *kind = [n.userInfo objectForKey:@"kind"];
+    if ([kind isEqual:ZNNotifyList] || [kind isEqual:ZNNotifyCheap]) self.tabs.selectedViewController = _navList;
+    else if ([kind isEqual:ZNNotifyNews] && [self.tabs.viewControllers containsObject:_navPapers]) self.tabs.selectedViewController = _navPapers;
+    else if ([kind isEqual:ZNNotifyWords]) self.tabs.selectedViewController = _navMore;
 }
 
 - (void)applicationWillEnterForeground:(UIApplication *)app {

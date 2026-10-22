@@ -3,8 +3,9 @@
 #import "ZNStore.h"
 #import "ZNTheme.h"
 #import "ZNLeafletsViewController.h"
+#import "ZNNotifier.h"
 
-enum { ZNSecCity = 0, ZNSecWords, ZNSecData, ZNSecAbout, ZNSecCount };
+enum { ZNSecCity = 0, ZNSecNotify, ZNSecWords, ZNSecData, ZNSecAbout, ZNSecCount };
 
 @implementation ZNSettingsViewController
 
@@ -40,6 +41,7 @@ enum { ZNSecCity = 0, ZNSecWords, ZNSecData, ZNSecAbout, ZNSecCount };
 - (NSString *)titleFor:(NSInteger)s {
     switch (s) {
         case ZNSecCity:  return @"Місто";
+        case ZNSecNotify: return @"Сповіщення";
         case ZNSecWords: return @"Відстежувати слова";
         case ZNSecData:  return @"Дані";
         default:         return @"Про застосунок";
@@ -47,6 +49,7 @@ enum { ZNSecCity = 0, ZNSecWords, ZNSecData, ZNSecAbout, ZNSecCount };
 }
 - (NSString *)footerFor:(NSInteger)s {
     if (s == ZNSecCity) return @"Для Metro, Novus, ЕКО маркет і газеток місцевих мереж. Вкладка «Газетки» з’являється, лише якщо вони є у вашому місті. Сільпо, АТБ, Varus і Аврора — однакові по всій Україні.";
+    if (s == ZNSecNotify) return @"Не частіше двох нових на день і не вночі (22:00–9:00). Нове перевіряється у фоні приблизно раз на 2 години.";
     if (s == ZNSecWords) return @"Наприклад «кава», «Nivea», «підгузки». Бейдж на вкладці «Ще» покаже, скільки таких товарів зараз в акції в усіх магазинах.";
     if (s == ZNSecData) return @"Акції збираються на сервері кожні 4 години. Ціни національних мереж можуть трохи відрізнятися в окремих магазинах.";
     return @"Знижки не пов'язані з жодною мережею магазинів.";
@@ -68,6 +71,7 @@ enum { ZNSecCity = 0, ZNSecWords, ZNSecData, ZNSecAbout, ZNSecCount };
 
 - (NSInteger)tableView:(UITableView *)tv numberOfRowsInSection:(NSInteger)s {
     if (s == ZNSecCity) return 1;
+    if (s == ZNSecNotify) return 4;
     if (s == ZNSecWords) return [ZNStore shared].watchWords.count + 1;
     return 3;
 }
@@ -88,6 +92,17 @@ enum { ZNSecCity = 0, ZNSecWords, ZNSecData, ZNSecAbout, ZNSecCount };
         c.detailTextLabel.text = st.cityName ?: @"не вибрано";
         if (!st.cityId) c.detailTextLabel.textColor = ZN_ACCENT_DARK;
         c.accessoryType = UITableViewCellAccessoryDisclosureIndicator;
+    } else if (ip.section == ZNSecNotify) {
+        NSArray *kinds = @[ZNNotifyList, ZNNotifyWords, ZNNotifyCheap, ZNNotifyNews];
+        NSArray *titles = @[@"Кінець акцій зі списку", @"Нові акції за словами", @"Дешевше в іншій мережі", @"Нові газетки"];
+        c.textLabel.text = [titles objectAtIndex:ip.row];
+        c.textLabel.adjustsFontSizeToFitWidth = YES;
+        c.selectionStyle = UITableViewCellSelectionStyleNone;
+        UISwitch *sw = [[[UISwitch alloc] init] autorelease];
+        sw.on = [[ZNNotifier shared] isOn:[kinds objectAtIndex:ip.row]];
+        sw.tag = ip.row;
+        [sw addTarget:self action:@selector(notifySwitch:) forControlEvents:UIControlEventValueChanged];
+        c.accessoryView = sw;
     } else if (ip.section == ZNSecWords) {
         NSArray *words = st.watchWords;
         if (ip.row < (NSInteger)words.count) {
@@ -135,6 +150,11 @@ enum { ZNSecCity = 0, ZNSecWords, ZNSecData, ZNSecAbout, ZNSecCount };
         }
     }
     return c;
+}
+
+- (void)notifySwitch:(UISwitch *)sw {
+    NSArray *kinds = @[ZNNotifyList, ZNNotifyWords, ZNNotifyCheap, ZNNotifyNews];
+    [[ZNNotifier shared] setOn:sw.on kind:[kinds objectAtIndex:sw.tag]];
 }
 
 - (BOOL)tableView:(UITableView *)tv canEditRowAtIndexPath:(NSIndexPath *)ip {

@@ -9,14 +9,32 @@
 - (void)drawTextInRect:(CGRect)rect {
     [super drawTextInRect:rect];
     if (_noStrike || !self.text.length) return;
+    CGContextRef ctx = UIGraphicsGetCurrentContext();
+    CGContextSetStrokeColorWithColor(ctx, (self.highlighted && self.highlightedTextColor ? self.highlightedTextColor : self.textColor).CGColor);
+    CGContextSetLineWidth(ctx, 1);
     CGSize sz = [self.text sizeWithFont:self.font];
+    if (self.numberOfLines != 1) {
+        // багаторядковий: закреслюємо кожен рядок (останній — на залишок ширини)
+        CGSize full = [self.text sizeWithFont:self.font constrainedToSize:CGSizeMake(rect.size.width, 2000)
+                                lineBreakMode:NSLineBreakByWordWrapping];
+        CGFloat lh = self.font.lineHeight;
+        NSInteger lines = MAX(1, (NSInteger)roundf(full.height / lh));
+        CGFloat top = rect.origin.y + roundf((rect.size.height - full.height) / 2);
+        CGFloat rest = sz.width;
+        for (NSInteger i = 0; i < lines; i++) {
+            CGFloat w = (i == lines - 1) ? MIN(rect.size.width, MAX(20, rest)) : full.width;
+            rest -= full.width;
+            CGFloat y = roundf(top + lh * i + lh / 2) + 0.5f;
+            CGContextMoveToPoint(ctx, rect.origin.x, y);
+            CGContextAddLineToPoint(ctx, rect.origin.x + w, y);
+        }
+        CGContextStrokePath(ctx);
+        return;
+    }
     CGFloat w = MIN(sz.width, rect.size.width);
     CGFloat x = rect.origin.x;
     if (self.textAlignment == NSTextAlignmentRight) x = CGRectGetMaxX(rect) - w;
     CGFloat y = roundf(CGRectGetMidY(rect)) + 0.5f;
-    CGContextRef ctx = UIGraphicsGetCurrentContext();
-    CGContextSetStrokeColorWithColor(ctx, (self.highlighted && self.highlightedTextColor ? self.highlightedTextColor : self.textColor).CGColor);
-    CGContextSetLineWidth(ctx, 1);
     CGContextMoveToPoint(ctx, x, y);
     CGContextAddLineToPoint(ctx, x + w, y);
     CGContextStrokePath(ctx);
