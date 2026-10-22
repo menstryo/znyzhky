@@ -7,6 +7,64 @@
 
 enum { ZNSecCity = 0, ZNSecLook, ZNSecNotify, ZNSecWords, ZNSecData, ZNSecAbout, ZNSecCount };
 
+// Іконки для «Про застосунок»: Telegram — паперовий літачок на блакитному, GitHub — «</>» на темному.
+// iOS 6 — з градієнтом і відблиском, iOS 7+ — пласкі.
+static UIImage *ZNAboutIcon(BOOL telegram) {
+    CGFloat S = 29;
+    UIGraphicsBeginImageContextWithOptions(CGSizeMake(S, S + 1), NO, [UIScreen mainScreen].scale);
+    CGContextRef ctx = UIGraphicsGetCurrentContext();
+    UIBezierPath *box = [UIBezierPath bezierPathWithRoundedRect:CGRectMake(0, 0, S, S) cornerRadius:7];
+    CGFloat top[3], bot[3];
+    if (telegram) { top[0]=0.37; top[1]=0.72; top[2]=0.92; bot[0]=0.18; bot[1]=0.56; bot[2]=0.81; }
+    else          { top[0]=0.36; top[1]=0.36; top[2]=0.36; bot[0]=0.13; bot[1]=0.13; bot[2]=0.13; }
+    if ([ZNTheme isFlat]) {
+        [[UIColor colorWithRed:(top[0]+bot[0])/2 green:(top[1]+bot[1])/2 blue:(top[2]+bot[2])/2 alpha:1] setFill];
+        [box fill];
+    } else {
+        CGContextSaveGState(ctx);
+        CGContextSetShadowWithColor(ctx, CGSizeMake(0, 1), 1, [UIColor colorWithWhite:0 alpha:0.3].CGColor);
+        [[UIColor blackColor] setFill]; [box fill];
+        CGContextRestoreGState(ctx);
+        CGFloat comps[8] = { top[0], top[1], top[2], 1, bot[0], bot[1], bot[2], 1 };
+        CGColorSpaceRef cs = CGColorSpaceCreateDeviceRGB();
+        CGGradientRef g = CGGradientCreateWithColorComponents(cs, comps, NULL, 2);
+        CGContextSaveGState(ctx);
+        [box addClip];
+        CGContextDrawLinearGradient(ctx, g, CGPointZero, CGPointMake(0, S), 0);
+        [[UIColor colorWithWhite:1 alpha:0.35] setFill];
+        CGContextFillRect(ctx, CGRectMake(0, 0, S, 1));
+        CGContextRestoreGState(ctx);
+        CGGradientRelease(g); CGColorSpaceRelease(cs);
+    }
+    // гліф у системі 24×24, вміщений у 17×17 по центру
+    CGContextTranslateCTM(ctx, 6, 6);
+    CGContextScaleCTM(ctx, 17.0 / 24.0, 17.0 / 24.0);
+    [[UIColor whiteColor] set];
+    if (telegram) {
+        UIBezierPath *p = [UIBezierPath bezierPath];
+        [p moveToPoint:CGPointMake(2.6, 10.9)];
+        [p addLineToPoint:CGPointMake(21.6, 3.4)];
+        [p addLineToPoint:CGPointMake(18.3, 19.8)];
+        [p addLineToPoint:CGPointMake(12.4, 15.4)];
+        [p addLineToPoint:CGPointMake(9.6, 17.8)];
+        [p addLineToPoint:CGPointMake(9.2, 13.6)];
+        [p addLineToPoint:CGPointMake(17.6, 7.4)];
+        [p addLineToPoint:CGPointMake(7.6, 13.4)];
+        [p closePath];
+        [p fill];
+    } else {
+        UIBezierPath *p = [UIBezierPath bezierPath];
+        [p moveToPoint:CGPointMake(8, 7)];  [p addLineToPoint:CGPointMake(3, 12)];  [p addLineToPoint:CGPointMake(8, 17)];
+        [p moveToPoint:CGPointMake(16, 7)]; [p addLineToPoint:CGPointMake(21, 12)]; [p addLineToPoint:CGPointMake(16, 17)];
+        [p moveToPoint:CGPointMake(13.5, 5)]; [p addLineToPoint:CGPointMake(10.5, 19)];
+        p.lineWidth = 2.6; p.lineCapStyle = kCGLineCapRound; p.lineJoinStyle = kCGLineJoinRound;
+        [p stroke];
+    }
+    UIImage *img = UIGraphicsGetImageFromCurrentImageContext();
+    UIGraphicsEndImageContext();
+    return img;
+}
+
 @implementation ZNSettingsViewController
 
 - (id)init {
@@ -60,12 +118,11 @@ enum { ZNSecCity = 0, ZNSecLook, ZNSecNotify, ZNSecWords, ZNSecData, ZNSecAbout,
     return [ZNTheme sectionHeaderWithTitle:[self titleFor:s] width:tv.bounds.size.width];
 }
 - (CGFloat)tableView:(UITableView *)tv heightForHeaderInSection:(NSInteger)s { return 40; }
+// підказок під розділами немає — лише невеликий відступ
 - (UIView *)tableView:(UITableView *)tv viewForFooterInSection:(NSInteger)s {
-    return [ZNTheme sectionFooterWithText:[self footerFor:s] width:tv.bounds.size.width];
+    return [[[UIView alloc] initWithFrame:CGRectMake(0, 0, tv.bounds.size.width, 6)] autorelease];
 }
-- (CGFloat)tableView:(UITableView *)tv heightForFooterInSection:(NSInteger)s {
-    return [ZNTheme heightForFooterText:[self footerFor:s] width:tv.bounds.size.width];
-}
+- (CGFloat)tableView:(UITableView *)tv heightForFooterInSection:(NSInteger)s { return 6; }
 
 #pragma mark - rows
 
@@ -76,6 +133,7 @@ enum { ZNSecCity = 0, ZNSecLook, ZNSecNotify, ZNSecWords, ZNSecData, ZNSecAbout,
     if (s == ZNSecNotify) return 4;
     if (s == ZNSecLook) return 1;
     if (s == ZNSecWords) return [ZNStore shared].watchWords.count + 1;
+    if (s == ZNSecAbout) return 2;
     return 3;
 }
 
@@ -145,20 +203,16 @@ enum { ZNSecCity = 0, ZNSecLook, ZNSecNotify, ZNSecWords, ZNSecData, ZNSecAbout,
             c.accessoryType = UITableViewCellAccessoryDisclosureIndicator;
         }
     } else {
-        if (ip.row == 0) {
-            c.textLabel.text = @"Канал розробника";
-            c.detailTextLabel.text = @"t.me/menstryo";
-            c.accessoryType = UITableViewCellAccessoryDisclosureIndicator;
-        } else if (ip.row == 1) {
-            c.textLabel.text = @"Задати питання";
-            c.detailTextLabel.text = @"t.me/menstry0";
-            c.accessoryType = UITableViewCellAccessoryDisclosureIndicator;
-        } else {
-            c.textLabel.text = @"Версія";
-            c.detailTextLabel.text = [[[NSBundle mainBundle] infoDictionary] objectForKey:@"CFBundleShortVersionString"];
-            c.selectionStyle = UITableViewCellSelectionStyleNone;
-        }
+        c.textLabel.text = ip.row == 0 ? @"Telegram" : @"GitHub";
+        c.detailTextLabel.text = ip.row == 0 ? @"@menstryo" : @"menstryo/znyzhky";
+        c.imageView.image = ZNAboutIcon(ip.row == 0);
+        c.accessoryType = UITableViewCellAccessoryDisclosureIndicator;
     }
+    // нічого не обрізаємо: довгі підписи зменшуються під ширину
+    c.textLabel.adjustsFontSizeToFitWidth = YES;
+    c.textLabel.minimumFontSize = 11;
+    c.detailTextLabel.adjustsFontSizeToFitWidth = YES;
+    c.detailTextLabel.minimumFontSize = 10;
     return c;
 }
 
@@ -215,8 +269,8 @@ enum { ZNSecCity = 0, ZNSecLook, ZNSecNotify, ZNSecWords, ZNSecData, ZNSecAbout,
         tf.autocorrectionType = UITextAutocorrectionTypeNo;
         tf.autocapitalizationType = UITextAutocapitalizationTypeNone;
         [a show];
-    } else if (ip.section == ZNSecAbout && ip.row < 2) {
-        NSString *u = ip.row == 0 ? @"https://t.me/menstryo" : @"https://t.me/menstry0";
+    } else if (ip.section == ZNSecAbout) {
+        NSString *u = ip.row == 0 ? @"https://t.me/menstryo" : @"https://github.com/menstryo/znyzhky";
         [[UIApplication sharedApplication] openURL:[NSURL URLWithString:u]];
     }
 }
