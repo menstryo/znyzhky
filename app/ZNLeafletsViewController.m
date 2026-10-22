@@ -58,7 +58,7 @@ static NSString *ZNLeafletDates(NSDictionary *l) {
     [self.tableView reloadData];
 
     NSString *msg = nil;
-    if (!st.cityId) msg = @"Оберіть місто — тут з'являться акційні газетки місцевих мереж (Сім23, Форта, Салют, Фора).";
+    if (!st.cityId) msg = @"Оберіть місто — тут з'являться акційні газетки місцевих мереж (Сім23, Форта, Салют).";
     else if (!st.leaflets.count) msg = st.loading ? @"Завантаження…" :
         [NSString stringWithFormat:@"Для міста %@ газеток зараз немає.\n\nЗагальнонаціональні акції — на вкладці «Акції».", city];
     if (msg) {

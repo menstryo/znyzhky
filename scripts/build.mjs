@@ -10,6 +10,7 @@ import { CATEGORIES } from "./categories.mjs";
 import { fetchRaw, fetchJSON, pool, todayISO } from "./lib.mjs";
 import { browserFetchBuffer, browserStarted, closeBrowser } from "./browser.mjs";
 import * as silpo from "./sources/silpo.mjs";
+import * as fora from "./sources/fora.mjs";
 import * as atb from "./sources/atb.mjs";
 import * as varus from "./sources/varus.mjs";
 import * as avrora from "./sources/avrora.mjs";
@@ -17,7 +18,7 @@ import * as zakaz from "./sources/zakaz.mjs";
 import { CITIES, ZAKAZ_CHAINS, LEAFLET_CHAINS } from "./cities.mjs";
 import { fetchLeaflets, fetchForta, gtsViaBrowser } from "./leaflets.mjs";
 
-const SOURCES = [silpo, atb, varus, avrora];
+const SOURCES = [silpo, atb, varus, fora, avrora];
 
 // лог збирача публікуємо разом з даними (public/build-log.txt) — щоб бачити помилки без доступу до логів Actions
 const LOG = [];
@@ -75,7 +76,7 @@ const hashOf = s => crypto.createHash("sha1").update(s).digest("hex").slice(0, 1
 // перестаємо пробувати до наступного запуску, щоб збірка не висіла годинами.
 const IMG_FAIL_LIMIT = 25;
 // деякі CDN віддають картинки лише з Referer свого сайту
-const REFERER = { silpo: "https://silpo.ua/", atb: "https://www.atbmarket.com/", varus: "https://varus.ua/", avrora: "https://avrora.ua/" };
+const REFERER = { silpo: "https://silpo.ua/", atb: "https://www.atbmarket.com/", varus: "https://varus.ua/", avrora: "https://avrora.ua/", fora: "https://fora.ua/" };
 const imgFails = {};
 const imgErrLogged = {};
 const NO_IMAGES = !!process.env.NO_IMAGES;

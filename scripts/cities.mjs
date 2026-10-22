@@ -35,5 +35,4 @@ export const ZAKAZ_CHAINS = [
 export const LEAFLET_CHAINS = [
   { slug: "sim-23", id: "sim23",  name: "Сім23" },
   { slug: "salyut", id: "salyut", name: "Салют" },
-  { slug: "fora",   id: "fora",   name: "Фора" },
 ];

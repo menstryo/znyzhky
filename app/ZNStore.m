@@ -144,7 +144,7 @@ static NSArray *ZNFoodCats(void) {
 
 - (NSString *)storeName:(NSString *)storeId {
     for (NSDictionary *s in self.stores) if ([[s objectForKey:@"id"] isEqual:storeId]) return [s objectForKey:@"name"];
-    NSDictionary *fallback = @{ @"silpo": @"Сільпо", @"atb": @"АТБ", @"varus": @"Varus", @"avrora": @"Аврора" };
+    NSDictionary *fallback = @{ @"silpo": @"Сільпо", @"atb": @"АТБ", @"varus": @"Varus", @"avrora": @"Аврора", @"fora": @"Фора" };
     return [fallback objectForKey:storeId] ?: storeId;
 }
 
