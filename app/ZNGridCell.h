@@ -5,3 +5,7 @@
 @property (nonatomic, retain) NSDictionary *item;
 + (CGSize)sizeForWidth:(CGFloat)totalWidth columns:(NSInteger *)outColumns;
 @end
+
+// спільні намальовані фони (також для екрана товару)
+UIImage *ZNStretchable(CGSize size, CGFloat radius, UIColor *fill, UIColor *shadow, CGFloat shadowY, CGFloat inset);
+UIImage *ZNTagImage(void);

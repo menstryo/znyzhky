@@ -9,7 +9,7 @@
 
 // Усі «дорогі» ефекти (тіні, заокруглення з обрізкою) намальовані заздалегідь у розтяжні картинки:
 // layer.shadow і masksToBounds рендеряться поза екраном на кожному кадрі — на 4S це й гальмувало прокрутку.
-static UIImage *ZNStretchable(CGSize size, CGFloat radius, UIColor *fill, UIColor *shadow, CGFloat shadowY, CGFloat inset) {
+UIImage *ZNStretchable(CGSize size, CGFloat radius, UIColor *fill, UIColor *shadow, CGFloat shadowY, CGFloat inset) {
     CGFloat scale = [UIScreen mainScreen].scale;
     UIGraphicsBeginImageContextWithOptions(size, NO, scale);
     CGContextRef ctx = UIGraphicsGetCurrentContext();
@@ -42,7 +42,7 @@ static UIImage *ZNCardPressedImage(void) {
     return i;
 }
 // жовтий цінник з тінню й прозорою облямівкою 1 px — тоді при повороті краї не «рвуться»
-static UIImage *ZNTagImage(void) {
+UIImage *ZNTagImage(void) {
     static UIImage *i = nil;
     if (!i) i = [ZNStretchable(CGSizeMake(24, 26), 3, [UIColor colorWithRed:1.0 green:0.84 blue:0.24 alpha:1],
                                [UIColor colorWithWhite:0 alpha:0.35], 1.5, 2) retain];
